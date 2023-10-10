@@ -13,7 +13,7 @@ pub fn calculate_slant_range(elevation_angle_degrees: f64, altitude: f64, body_r
 
     let radius_ratio_squared: f64 = total_radius_ratio * total_radius_ratio;
 
-    let inner_term = f64::sqrt(
+    let inner_term: f64 = f64::sqrt(
         radius_ratio_squared
             - f64::cos(elevation_angle_radians) * f64::cos(elevation_angle_radians),
     );
@@ -32,7 +32,8 @@ mod tests {
         let altitude: f64 = base.powf(6.0);
         let body_radius: f64 = 6371000.0;
 
-        let slant_range = calculate_slant_range(elevation_angle_degrees, altitude, body_radius);
+        let slant_range: f64 =
+            calculate_slant_range(elevation_angle_degrees, altitude, body_radius);
         assert_eq!(altitude, slant_range);
     }
 
@@ -43,7 +44,8 @@ mod tests {
         let altitude: f64 = base.powf(6.0);
         let body_radius: f64 = 6371000.0;
 
-        let slant_range = calculate_slant_range(elevation_angle_degrees, altitude, body_radius);
+        let slant_range: f64 =
+            calculate_slant_range(elevation_angle_degrees, altitude, body_radius);
         assert_eq!(1.551086307581479 * altitude, slant_range);
     }
 
@@ -54,7 +56,8 @@ mod tests {
         let altitude: f64 = base.powf(6.0);
         let body_radius: f64 = 6371000.0;
 
-        let slant_range = calculate_slant_range(elevation_angle_degrees, altitude, body_radius);
+        let slant_range: f64 =
+            calculate_slant_range(elevation_angle_degrees, altitude, body_radius);
         assert_eq!(3.707020366817534 * altitude, slant_range);
     }
 }
