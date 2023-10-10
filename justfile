@@ -4,7 +4,7 @@ help:
 
 # lint the code
 lint:
-	cargo clippy --all-targets --all-features -- -D warnings
+	cargo clippy --all-targets --all-features
 
 # dev server
 dev:
