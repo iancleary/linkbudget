@@ -3,6 +3,8 @@ ignorePaths: []
 dictionaryDefinitions: []
 dictionaries: []
 words:
+  - consts
   - fspl
+  - powf
 ignoreWords: []
 import: []
