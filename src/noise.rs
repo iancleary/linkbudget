@@ -3,7 +3,8 @@ pub fn noise_temperature_from_noise_factor(noise_factor: f64) -> f64 {
 }
 
 pub fn noise_temperature_from_noise_figure(noise_figure: f64) -> f64 {
-    290.0 * (10.0_f64.powf(noise_figure / 10.0) - 1.0)
+    let noise_factor: f64 = noise_factor_from_noise_figure(noise_figure);
+    noise_temperature_from_noise_factor(noise_factor)
 }
 
 pub fn noise_factor_from_noise_figure(noise_figure: f64) -> f64 {
@@ -15,7 +16,8 @@ pub fn noise_factor_from_noise_temperature(noise_temperature: f64) -> f64 {
 }
 
 pub fn noise_figure_from_noise_temperature(noise_temperature: f64) -> f64 {
-    10.0_f64 * (1.0 + (noise_temperature / 290.0)).log10()
+    let noise_factor: f64 = noise_factor_from_noise_temperature(noise_temperature);
+    noise_figure_from_noise_factor(noise_factor)
 }
 
 pub fn noise_figure_from_noise_factor(noise_factor: f64) -> f64 {
