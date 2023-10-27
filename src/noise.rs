@@ -24,8 +24,8 @@ pub fn noise_figure_from_noise_factor(noise_factor: f64) -> f64 {
     10.0_f64 * noise_factor.log10()
 }
 
-pub fn noise_power_from_bandwidth(bandwidth: f64) -> f64 {
-    1.38e-23 * 290.0 * bandwidth
+pub fn noise_power_from_bandwidth(temperature: f64,bandwidth: f64) -> f64 {
+    1.38e-23 * temperature * bandwidth
 }
 
 // Noise Figure of Passive Device
@@ -150,8 +150,9 @@ mod tests {
     #[test]
     fn noise_power_from_bandwidth() {
         let bandwidth: f64 = 100.0e6;
+        let temperature: f64 = 290.0;
 
-        let noise_power: f64 = super::noise_power_from_bandwidth(bandwidth);
+        let noise_power: f64 = super::noise_power_from_bandwidth(temperature, bandwidth);
 
         let noise_power_dbm: f64 = 10.0 * (noise_power.log10() + 3.0);
 
