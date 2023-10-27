@@ -24,6 +24,10 @@ pub fn noise_figure_from_noise_factor(noise_factor: f64) -> f64 {
     10.0_f64 * noise_factor.log10()
 }
 
+pub fn noise_power_from_bandwidth(bandwidth: f64) -> f64 {
+    1.38e-23 * 290.0 * bandwidth
+}
+
 // Noise Figure of Passive Device
 // https://www.microwaves101.com/encyclopedias/noise-temperature
 // "Linear passive devices have noise figure equal to their loss. Expressed in dB, the NF is equal to -S21(dB). Something with one dB loss has one dB noise figure.
@@ -141,5 +145,16 @@ mod tests {
         let noise_figure: f64 = super::noise_figure_from_noise_factor(noise_factor);
 
         assert_eq!(6.020599913279624, noise_figure);
+    }
+
+    #[test]
+    fn noise_power_from_bandwidth() {
+        let bandwidth: f64 = 100.0e6;
+
+        let noise_power: f64 = super::noise_power_from_bandwidth(bandwidth);
+
+        let noise_power_dbm: f64 = 10.0 * (noise_power.log10() + 3.0);
+
+        assert_eq!(-93.97722915699808, noise_power_dbm);
     }
 }
