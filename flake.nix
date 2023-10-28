@@ -4,7 +4,7 @@
   # GitHub URLs for the Nix inputs we're using
   inputs = {
     # Simply the greatest package repository on the planet
-    nixpkgs.url = "github:NixOS/nixpkgs";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     # A set of helper functions for using flakes
     flake-utils.url = "github:numtide/flake-utils";
     # A utility library for working with Rust
