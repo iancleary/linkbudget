@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - run: nix flake check
+      - name: Setup Cargo
+        run: |
+          nix develop --command which cargo
+          nix develop --command cargo --version
+      - name: Build
+        run: nix develop --command cargo build --verbose
+      - name: Test
+        run: nix develop --command cargo test --verbose
