@@ -73,18 +73,18 @@ mod tests {
     #[test]
     fn leo() {
         let base: f64 = 10.0;
-        let frequency: f64 = 27.5 * base.powf(9.0);
+        let frequency: f64 = 28.0 * base.powf(9.0);
 
         let distance: f64 = 1.0 * base.powf(6.0);
 
         let free_space_path_loss: f64 = calculate_free_space_path_loss(frequency, distance);
-        assert_eq!(181.23443709848863, free_space_path_loss);
+        assert_eq!(181.39094384872777, free_space_path_loss);
     }
 
     #[test]
     fn leo_slant_range() {
         let base: f64 = 10.0;
-        let frequency: f64 = 27.5 * base.powf(9.0);
+        let frequency: f64 = 28.0 * base.powf(9.0);
 
         let altitude: f64 = 1.0 * base.powf(6.0);
         let elevation_angle_degrees: f64 = 35.0;
@@ -92,6 +92,62 @@ mod tests {
         let slant_range: f64 = calculate_slant_range(elevation_angle_degrees, altitude, 6371000.0);
 
         let free_space_path_loss: f64 = calculate_free_space_path_loss(frequency, slant_range);
-        assert_eq!(185.04715637988681, free_space_path_loss);
+        assert_eq!(185.2036631301259, free_space_path_loss);
+    }
+
+    #[test]
+    fn meo() {
+        let base: f64 = 10.0;
+        let frequency: f64 = 28.0 * base.powf(9.0);
+
+        // O3B Ka Uplink, for example
+        let distance: f64 = 8.062 * base.powf(6.0);
+
+        let free_space_path_loss: f64 = calculate_free_space_path_loss(frequency, distance);
+        assert_eq!(199.51979972506842, free_space_path_loss);
+    }
+
+    #[test]
+    fn meo_slant_range() {
+        let base: f64 = 10.0;
+        let frequency: f64 = 28.0 * base.powf(9.0);
+
+        // O3B Ka Uplink, for example
+        let altitude: f64 = 8.062 * base.powf(6.0);
+
+        let elevation_angle_degrees: f64 = 50.0;
+
+        let slant_range: f64 = calculate_slant_range(elevation_angle_degrees, altitude, 6371000.0);
+
+        let free_space_path_loss: f64 = calculate_free_space_path_loss(frequency, slant_range);
+        assert_eq!(200.4364820676488, free_space_path_loss);
+    }
+
+    #[test]
+    fn geo() {
+        let base: f64 = 10.0;
+        let frequency: f64 = 28.0 * base.powf(9.0);
+
+        // GEO, for example
+        let distance: f64 = 35.786 * base.powf(6.0);
+
+        let free_space_path_loss: f64 = calculate_free_space_path_loss(frequency, distance);
+        assert_eq!(212.46520700065133, free_space_path_loss);
+    }
+
+    #[test]
+    fn geo_slant_range() {
+        let base: f64 = 10.0;
+        let frequency: f64 = 28.0 * base.powf(9.0);
+
+        // GEO, for example
+        let altitude: f64 = 35.786 * base.powf(6.0);
+
+        let elevation_angle_degrees: f64 = 80.0;
+
+        let slant_range: f64 = calculate_slant_range(elevation_angle_degrees, altitude, 6371000.0);
+
+        let free_space_path_loss: f64 = calculate_free_space_path_loss(frequency, slant_range);
+        assert_eq!(212.4851526972714, free_space_path_loss);
     }
 }
