@@ -24,7 +24,7 @@ pub fn noise_figure_from_noise_factor(noise_factor: f64) -> f64 {
     10.0_f64 * noise_factor.log10()
 }
 
-pub fn noise_power_from_bandwidth(temperature: f64,bandwidth: f64) -> f64 {
+pub fn noise_power_from_bandwidth(temperature: f64, bandwidth: f64) -> f64 {
     1.38e-23 * temperature * bandwidth
 }
 
