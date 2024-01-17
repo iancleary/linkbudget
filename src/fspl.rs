@@ -28,6 +28,22 @@ pub fn calculate_free_space_path_loss(frequency: f64, distance: f64) -> f64 {
     free_space_path_loss
 }
 
+pub struct SlantRange {
+    pub elevation_angle_degrees: f64,
+    pub altitude: f64,
+}
+
+impl SlantRange {
+    pub fn calculate(&self) -> f64 {
+        let slant_range = calculate_slant_range(
+            self.elevation_angle_degrees,
+            self.altitude,
+            crate::constants::RADIUS_OF_EARTH,
+        );
+        slant_range
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::fspl::calculate_slant_range;
