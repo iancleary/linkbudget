@@ -1,9 +1,9 @@
-use crate::frequency::frequency_to_wavelength;
+use crate::conversions::frequency::frequency_to_wavelength;
 use std::f64::consts::PI;
 
 pub fn calculate_slant_range(elevation_angle_degrees: f64, altitude: f64, body_radius: f64) -> f64 {
     let elevation_angle_radians: f64 =
-        crate::conversions::degrees_to_radians(elevation_angle_degrees);
+        crate::conversions::angle::degrees_to_radians(elevation_angle_degrees);
     let total_radius: f64 = altitude + body_radius;
 
     let total_radius_ratio: f64 = total_radius / body_radius;
