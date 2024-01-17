@@ -5,10 +5,9 @@ documentation = "https://docs.rs/linkbudget"
 edition = "2021"
 homepage = "https://github.com/iancleary/linkbudget"
 license = "MIT"
-license-file = "LICENSE"
 name = "linkbudget"
 repository = "https://github.com/iancleary/linkbudget"
-version = "0.0.6"
+version = "0.0.7"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
