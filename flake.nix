@@ -36,7 +36,7 @@
         ];
 
         # Placeholder for utilities commonly used in Rust projects (but not in this example project)
-        others = with pkgs; [ ];
+        others = with pkgs; [ just ];
 
       in {
         devShells = {
