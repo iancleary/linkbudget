@@ -1,5 +1,7 @@
 pub const SPEED_OF_LIGHT: f64 = 299792458.0;
 pub const RADIUS_OF_EARTH: f64 = 6371000.0;
+// 5.972 * 10.0f64.powf(24.0);
+pub const MASS_OF_EARTH: f64 = 5.972e24;
 
 // https://en.wikipedia.org/wiki/Gravitational_constant
 // 6.67430(15)×10−11 m3⋅kg−1⋅s−2
