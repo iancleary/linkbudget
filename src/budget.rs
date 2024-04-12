@@ -30,7 +30,7 @@ impl LinkBudget {
         crate::fspl::calculate_free_space_path_loss(self.frequency, slant_range)
     }
 
-    pub fn pin_at_reciever(&self) -> f64 {
+    pub fn pin_at_receiver(&self) -> f64 {
         let free_space_path_loss = self.fspl();
 
         // Assumes receiver input power is spread across the bandwidth
@@ -44,7 +44,7 @@ impl LinkBudget {
     }
     pub fn snr(&self) -> f64 {
         // returns value in dB
-        self.receiver.calculate_snr(self.pin_at_reciever())
+        self.receiver.calculate_snr(self.pin_at_receiver())
     }
 
     pub fn snr_linear(&self) -> f64 {
@@ -91,7 +91,7 @@ impl LinkBudget {
         print_row("Free Space Path Loss", &self.fspl().to_string(), "dB");
         print_row(
             "Receiver Input Power",
-            &self.pin_at_reciever().to_string(),
+            &self.pin_at_receiver().to_string(),
             "dBm",
         );
         print_row("SNR", &self.snr().to_string(), "dB");
