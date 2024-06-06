@@ -12,12 +12,12 @@ pub fn print_header() {
 pub fn print_separator() {
     // println!("");
     println!("--------------------------------------------------");
-    println!("");
+    println!();
 }
 
 #[allow(dead_code)]
 pub fn print_title(title: &str) {
     println!("                   {}", title);
     println!("--------------------------------------------------");
-    println!("");
+    println!();
 }

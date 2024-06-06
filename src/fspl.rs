@@ -35,12 +35,11 @@ pub struct SlantRange {
 
 impl SlantRange {
     pub fn calculate(&self) -> f64 {
-        let slant_range = calculate_slant_range(
+        calculate_slant_range(
             self.elevation_angle_degrees,
             self.altitude,
             crate::constants::RADIUS_OF_EARTH,
-        );
-        slant_range
+        )
     }
 }
 
