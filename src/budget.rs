@@ -35,12 +35,8 @@ impl LinkBudget {
 
         // Assumes receiver input power is spread across the bandwidth
 
-        let pin_at_receiver = self.transmitter.output_power + self.transmitter.gain
-            - free_space_path_loss
-            - self.rain_fade
-            + self.receiver.gain;
-
-        pin_at_receiver
+        // pin_at_receiver =
+        self.transmitter.output_power + self.transmitter.gain - free_space_path_loss - self.rain_fade + self.receiver.gain
     }
     pub fn snr(&self) -> f64 {
         // returns value in dB
@@ -60,7 +56,7 @@ impl LinkBudget {
     }
 
     pub fn print(&self) {
-        print_title(&self.name);
+        print_title(self.name);
         print_row("Summary", "Value", "Unit");
         print_header();
         print_row("Frequency", &self.frequency.to_string(), "Hz");

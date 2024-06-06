@@ -31,7 +31,7 @@ mod tests {
     #[test]
     fn dbm_to_watts() {
         // not worrying about floating point precision here
-        let dbm: f64 = 43.0102999566398087;
+        let dbm: f64 = 43.010_299_956_639_805;
 
         let watts: f64 = super::dbm_to_watts(dbm);
 
