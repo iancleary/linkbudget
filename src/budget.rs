@@ -2,7 +2,6 @@ use crate::fspl::SlantRange;
 use crate::phy::PhyRate;
 use crate::receiver::Receiver;
 use crate::transmitter::Transmitter;
-use crate::utils::print::{print_header, print_row, print_separator, print_title};
 
 // elevation_angle and altitude could be moved to a struct
 // also could come from the position of the transmitter and receiver
@@ -54,47 +53,5 @@ impl LinkBudget {
             snr: self.snr_linear(),
         }
     }
-
-    pub fn print(&self) {
-        print_title(self.name);
-        print_row("Summary", "Value", "Unit");
-        print_header();
-        print_row("Frequency", &self.frequency.to_string(), "Hz");
-        print_row("Bandwidth", &self.bandwidth.to_string(), "Hz");
-        print_row(
-            "Transmitter Pout",
-            &self.transmitter.output_power.to_string(),
-            "dBm",
-        );
-        print_row("Transmitter Gain", &self.transmitter.gain.to_string(), "dB");
-        print_row("Receiver Gain", &self.receiver.gain.to_string(), "dB");
-        print_row("Receiver NF", &self.receiver.noise_figure.to_string(), "dB");
-        print_row(
-            "Receiver Temperature",
-            &self.receiver.temperature.to_string(),
-            "K",
-        );
-        print_row(
-            "Elevation Angle",
-            &self.elevation_angle_degrees.to_string(),
-            "deg",
-        );
-        print_row("Altitude", &self.altitude.to_string(), "km");
-        print_row("Rain Fade", &self.rain_fade.to_string(), "dB");
-        print_separator();
-        print_row("Calculations", "Value", "Unit");
-        print_header();
-        print_row("Free Space Path Loss", &self.fspl().to_string(), "dB");
-        print_row(
-            "Receiver Input Power",
-            &self.pin_at_receiver().to_string(),
-            "dBm",
-        );
-        print_row("SNR", &self.snr().to_string(), "dB");
-        print_separator();
-
-        self.phy_rate().print();
-
-        print_separator();
-    }
 }
+

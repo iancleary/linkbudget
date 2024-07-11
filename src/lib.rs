@@ -6,4 +6,3 @@ pub mod orbits;
 pub mod phy;
 pub mod receiver;
 pub mod transmitter;
-pub mod utils;

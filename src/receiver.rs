@@ -1,5 +1,3 @@
-use crate::utils::print::{print_row, print_separator};
-
 pub struct Receiver {
     pub gain: f64,         // dB
     pub temperature: f64,  // K
@@ -27,25 +25,6 @@ impl Receiver {
         // Assumes receiver input power is spread across the bandwidth
         // returns value in dB
         input_power - receiver_total_noise_power
-    }
-
-    pub fn print(&self, input_power: f64) {
-        print_row("Gain", &self.gain.to_string(), "dB");
-        print_row("Temperature", &self.temperature.to_string(), "K");
-        print_row("Noise Figure", &self.noise_figure.to_string(), "dB");
-        print_row("Bandwidth", &self.bandwidth.to_string(), "Hz");
-        print_separator();
-        print_row(
-            "Noise Floor",
-            &self.calculate_noise_floor().to_string(),
-            "dBm",
-        );
-        print_row(
-            "Noise Power",
-            &self.calculate_noise_power().to_string(),
-            "dBm",
-        );
-        print_row("SNR", &self.calculate_snr(input_power).to_string(), "dB");
     }
 }
 
