@@ -1,4 +1,5 @@
-use crate::utils::print::print_row;
+use core::fmt;
+use std::fmt::{Display, Formatter};
 
 pub struct PhyRate {
     pub bandwidth: f64, // Hz
@@ -21,17 +22,16 @@ impl PhyRate {
         self.bps() / 1_000_000_000.0
     }
 
-    pub fn print(&self) {
-        print_row("Bandwidth", &self.bandwidth.to_string(), "Hz");
-        print_row("SNR", &self.snr.to_string(), "linear");
-        print_row("Shannon Capacity", "B * log2(1 + SNR)", "");
-        print_row("PHY Rate", &self.bps().to_string(), "bps");
-        print_row("PHY Rate", &self.mbps().to_string(), "Mbps");
+}
+
+
+impl Display for PhyRate {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "Bandwidth {} Hz\nSNR {} (linear)\nPHY Rate {} Mbps", &self.bandwidth.to_string(), &self.snr.to_string(), &self.mbps().to_string())
     }
 }
 
 #[cfg(test)]
-
 mod tests {
     use super::*;
 
