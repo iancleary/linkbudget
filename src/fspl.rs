@@ -1,4 +1,4 @@
-use crate::conversions::frequency::frequency_to_wavelength;
+use rfconversions::frequency::frequency_to_wavelength;
 use std::f64::consts::PI;
 
 /// Free Space Path Loss (FSPL)

@@ -3,6 +3,10 @@
 // for the full 3D calculation, TLEs would be needed for the satellite, lat/long/altitude for the other point
 // this doesn't also allow from point to point communications (ground <-> ground, ground <-> satellite, satellite <-> satellite, satellite <-> plane/etc.)
 
+fn degrees_to_radians(degrees: f64) -> f64 {
+    degrees * std::f64::consts::PI / 180.0
+}
+
 pub struct SlantRange {
     pub elevation_angle_degrees: f64,
     pub altitude: f64,
@@ -11,8 +15,7 @@ pub struct SlantRange {
 
 impl SlantRange {
     pub fn calculate(&self) -> f64 {
-        let elevation_angle_radians: f64 =
-            crate::conversions::angle::degrees_to_radians(self.elevation_angle_degrees);
+        let elevation_angle_radians: f64 = degrees_to_radians(self.elevation_angle_degrees);
         let total_radius: f64 = self.altitude + self.body_radius;
 
         let total_radius_ratio: f64 = total_radius / self.body_radius;
