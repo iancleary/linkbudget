@@ -21,13 +21,17 @@ impl PhyRate {
         // PHY Rate in Gbps
         self.bps() / 1_000_000_000.0
     }
-
 }
-
 
 impl Display for PhyRate {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "Bandwidth {} Hz\nSNR {} (linear)\nPHY Rate {} Mbps", &self.bandwidth.to_string(), &self.snr.to_string(), &self.mbps().to_string())
+        write!(
+            f,
+            "Bandwidth {} Hz\nSNR {} (linear)\nPHY Rate {} Mbps",
+            &self.bandwidth.to_string(),
+            &self.snr.to_string(),
+            &self.mbps().to_string()
+        )
     }
 }
 
