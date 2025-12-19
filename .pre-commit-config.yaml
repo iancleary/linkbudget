@@ -1,7 +1,7 @@
 # Run `pre-commit install` to setup the repo
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.3.0
+    rev: v6.0.0
     hooks:
     -   id: check-yaml
     -   id: end-of-file-fixer
@@ -19,6 +19,7 @@ repos:
         name: Rust clippy
         description: Run cargo clippy on files included in the commit. clippy should be installed before-hand.
         entry: cargo clippy --all-targets --all-features -- -Dclippy::all
+        # cargo clippy --all-targets --all-features --fix -- -Dclippy::all
         pass_filenames: false
         types: [file, rust]
         language: system
