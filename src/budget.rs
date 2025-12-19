@@ -1,4 +1,4 @@
-use crate::fspl::FreeSpacePathLoss;
+use crate::path_loss::PathLoss;
 use crate::phy::PhyRate;
 use crate::receiver::Receiver;
 use crate::transmitter::Transmitter;
@@ -9,20 +9,23 @@ use crate::transmitter::Transmitter;
 
 pub struct LinkBudget {
     pub name: &'static str,
-    pub bandwidth: f64,              // in Hz
-    pub transmitter: Transmitter,    // you should include any pointing loss, etc. here
-    pub receiver: Receiver,          // you should include any pointing loss, etc. here
-    pub fspl: FreeSpacePathLoss,     // you may calculate this yourself for various situations
-    pub fade_margin_db: Option<f64>, // optional fade margin, such as rain fade, obstacles, etc.
+    pub bandwidth: f64,           // in Hz
+    pub transmitter: Transmitter, // you should include any pointing loss, etc. here
+    pub receiver: Receiver,       // you should include any pointing loss, etc. here
+    pub path_loss: PathLoss,      // you may calculate this yourself for various situations
+    // the frequency dependence is really an antenna effect (for free space)
+    pub frequency_dependent_loss: Option<f64>, // optional fade margin, such as rain fade, obstacles, etc.
+                                               // this is the part that generally has a frequency dependence
+                                               // rain fade, obstacle penetration, atmospheric absorption, etc.
 }
 
 impl LinkBudget {
     pub fn path_loss(&self) -> f64 {
-        let fspl_in_db: f64 = self.fspl.calculate();
+        let path_loss_in_db: f64 = self.path_loss.calculate();
 
-        let mut total_path_loss_in_db: f64 = fspl_in_db;
-        if let Some(fade_margin_db) = self.fade_margin_db {
-            total_path_loss_in_db += fade_margin_db;
+        let mut total_path_loss_in_db: f64 = path_loss_in_db;
+        if let Some(frequency_dependent_loss) = self.frequency_dependent_loss {
+            total_path_loss_in_db += frequency_dependent_loss;
         }
 
         total_path_loss_in_db
