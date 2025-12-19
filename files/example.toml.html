@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link Budget - Test Link</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 2rem;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .diagram {
+            width: 100%;
+            overflow-x: auto;
+            display: flex;
+            justify-content: center;
+        }
+        svg {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Link Budget: Test Link</h1>
+        <div class="diagram">
+            <svg width="800" height="400" viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,6 L9,3 z" fill="#666" />
+        </marker>
+    </defs>
+    <line x1="220" y1="190" x2="600" y2="190" stroke="#666" stroke-width="2" marker-end="url(#arrow)" />
+        <g transform="translate(100, 150)">
+            <rect width="120" height="80" rx="5" ry="5" fill="#e3f2fd" stroke="#2196f3" stroke-width="2"/>
+            <text x="60" y="25" text-anchor="middle" font-weight="bold" fill="#1565c0">Transmitter</text>
+            <text x="10" y="45" font-size="12" fill="#333">Power: -20.0 dBm</text>
+            <text x="10" y="60" font-size="12" fill="#333">Gain: 20.0 dB</text>
+        </g>
+
+        <g transform="translate(600, 150)">
+            <rect width="120" height="80" rx="5" ry="5" fill="#e8f5e9" stroke="#4caf50" stroke-width="2"/>
+            <text x="60" y="25" text-anchor="middle" font-weight="bold" fill="#2e7d32">Receiver</text>
+            <text x="10" y="45" font-size="12" fill="#333">Gain: 10.0 dB</text>
+            <text x="10" y="60" font-size="12" fill="#333">NF: 4.0 dB</text>
+        </g>
+
+        <g transform="translate(410, 170)">
+            <text x="0" y="0" text-anchor="middle" font-size="12" fill="#666">Path Loss</text>
+            <text x="0" y="15" text-anchor="middle" font-weight="bold" fill="#d32f2f">103.1 dB</text>
+            <text x="0" y="35" text-anchor="middle" font-size="10" fill="#666">Frequency Dependent Loss: 3.0 dB</text>
+            <text x="0" y="50" text-anchor="middle" font-size="10" fill="#666">Frequency: 2.4 GHz</text>
+            <text x="0" y="65" text-anchor="middle" font-size="10" fill="#666">Distance: 1000.0 m</text>
+        </g>
+
+        <g transform="translate(400, 300)">
+            <text x="0" y="0" text-anchor="middle" font-weight="bold" fill="#333">Results</text>
+            <g transform="translate(0, 20)" font-size="14" fill="#333">
+                <text x="-5" y="0" text-anchor="end">SNR:</text>
+                <text x="5" y="0" text-anchor="start">6.9 dB</text>
+
+                <text x="-5" y="20" text-anchor="end">Bandwidth:</text>
+                <text x="5" y="20" text-anchor="start">10.0 MHz</text>
+
+                <text x="-5" y="40" text-anchor="end">PHY Rate:</text>
+                <text x="5" y="40" text-anchor="start">25.7 Mbps</text>
+            </g>
+        </g>
+        </svg>
+        </div>
+    </div>
+</body>
+</html>
