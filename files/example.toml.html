@@ -49,27 +49,37 @@
         <g transform="translate(100, 150)">
             <rect width="120" height="80" rx="5" ry="5" fill="#e3f2fd" stroke="#2196f3" stroke-width="2"/>
             <text x="60" y="25" text-anchor="middle" font-weight="bold" fill="#1565c0">Transmitter</text>
-            <text x="10" y="45" font-size="12" fill="#333">Power: 40.0 dBm</text>
-            <text x="10" y="60" font-size="12" fill="#333">Gain: 10.0 dB</text>
+            <text x="10" y="45" font-size="12" fill="#333">Power: -20.0 dBm</text>
+            <text x="10" y="60" font-size="12" fill="#333">Gain: 20.0 dB</text>
         </g>
 
         <g transform="translate(600, 150)">
             <rect width="120" height="80" rx="5" ry="5" fill="#e8f5e9" stroke="#4caf50" stroke-width="2"/>
             <text x="60" y="25" text-anchor="middle" font-weight="bold" fill="#2e7d32">Receiver</text>
-            <text x="10" y="45" font-size="12" fill="#333">Gain: 20.0 dB</text>
-            <text x="10" y="60" font-size="12" fill="#333">NF: 5.0 dB</text>
+            <text x="10" y="45" font-size="12" fill="#333">Gain: 10.0 dB</text>
+            <text x="10" y="60" font-size="12" fill="#333">NF: 4.0 dB</text>
         </g>
 
         <g transform="translate(410, 170)">
             <text x="0" y="0" text-anchor="middle" font-size="12" fill="#666">Path Loss</text>
             <text x="0" y="15" text-anchor="middle" font-weight="bold" fill="#d32f2f">103.1 dB</text>
-            <text x="0" y="30" text-anchor="middle" font-size="10" fill="#666">Margin: 3.0 dB</text>
+            <text x="0" y="35" text-anchor="middle" font-size="10" fill="#666">Frequency Dependent Loss: 3.0 dB</text>
+            <text x="0" y="50" text-anchor="middle" font-size="10" fill="#666">Frequency: 2.4 GHz</text>
+            <text x="0" y="65" text-anchor="middle" font-size="10" fill="#666">Distance: 1000.0 m</text>
         </g>
 
-        <g transform="translate(400, 350)">
+        <g transform="translate(400, 300)">
             <text x="0" y="0" text-anchor="middle" font-weight="bold" fill="#333">Results</text>
-            <text x="0" y="20" text-anchor="middle" font-size="14" fill="#333">Rx Power: -33.1 dBm</text>
-            <text x="0" y="40" text-anchor="middle" font-size="14" fill="#333">SNR: 65.9 dB</text>
+            <g transform="translate(0, 20)" font-size="14" fill="#333">
+                <text x="-5" y="0" text-anchor="end">SNR:</text>
+                <text x="5" y="0" text-anchor="start">6.9 dB</text>
+
+                <text x="-5" y="20" text-anchor="end">Bandwidth:</text>
+                <text x="5" y="20" text-anchor="start">10.0 MHz</text>
+
+                <text x="-5" y="40" text-anchor="end">PHY Rate:</text>
+                <text x="5" y="40" text-anchor="start">25.7 Mbps</text>
+            </g>
         </g>
         </svg>
         </div>

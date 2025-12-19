@@ -82,7 +82,56 @@ fn generate_svg(budget: &LinkBudget) -> String {
     let path_loss = budget.path_loss();
     let rx_power = budget.pin_at_receiver();
     let snr = budget.snr();
-    let margin = budget.frequency_dependent_loss.unwrap_or(0.0);
+    let phy_rate_bps = budget.phy_rate().bps();
+
+    let phy_rate_str = if phy_rate_bps < 1e3 {
+        format!("{:.1} bps", phy_rate_bps)
+    } else if phy_rate_bps < 1e6 {
+        format!("{:.1} kbps", phy_rate_bps / 1e3)
+    } else if phy_rate_bps < 1e9 {
+        format!("{:.1} Mbps", phy_rate_bps / 1e6)
+    } else if phy_rate_bps < 1e12 {
+        format!("{:.1} Gbps", phy_rate_bps / 1e9)
+    } else if phy_rate_bps < 1e15 {
+        format!("{:.1} Tb/s", phy_rate_bps / 1e12)
+    } else {
+        format!("{:.1} Pb/s", phy_rate_bps / 1e15)
+    };
+
+    let distance = budget.path_loss.distance;
+    let frequency = budget.path_loss.frequency;
+
+    // if frequency is greater than 1e12 use THz, etc.
+    let frequency_str = if frequency < 1e3 {
+        format!("{:.1} Hz", frequency)
+    } else if frequency < 1e6 {
+        format!("{:.1} kHz", frequency / 1e3)
+    } else if frequency < 1e9 {
+        format!("{:.1} MHz", frequency / 1e6)
+    } else if frequency < 1e12 {
+        format!("{:.1} GHz", frequency / 1e9)
+    } else if frequency < 1e15 {
+        format!("{:.1} THz", frequency / 1e12)
+    } else {
+        format!("{:.1} PHz", frequency / 1e15)
+    };
+
+    let bandwidth = budget.bandwidth;
+    let bandwidth_str = if bandwidth < 1e3 {
+        format!("{:.1} Hz", bandwidth)
+    } else if bandwidth < 1e6 {
+        format!("{:.1} kHz", bandwidth / 1e3)
+    } else if bandwidth < 1e9 {
+        format!("{:.1} MHz", bandwidth / 1e6)
+    } else if bandwidth < 1e12 {
+        format!("{:.1} GHz", bandwidth / 1e9)
+    } else if bandwidth < 1e15 {
+        format!("{:.1} THz", bandwidth / 1e12)
+    } else {
+        format!("{:.1} PHz", bandwidth / 1e15)
+    };
+
+    let frequency_dependent_loss = budget.frequency_dependent_loss.unwrap_or(0.0);
 
     let mut svg = String::new();
 
@@ -141,7 +190,8 @@ fn generate_svg(budget: &LinkBudget) -> String {
         component_width, component_height,
         component_width / 2,
         budget.receiver.gain,
-        budget.receiver.noise_figure
+        budget.receiver.noise_figure,
+        // rx_power
     ));
 
     // Path Loss Label
@@ -150,13 +200,17 @@ fn generate_svg(budget: &LinkBudget) -> String {
         <g transform="translate({}, {})">
             <text x="0" y="0" text-anchor="middle" font-size="12" fill="#666">Path Loss</text>
             <text x="0" y="15" text-anchor="middle" font-weight="bold" fill="#d32f2f">{:.1} dB</text>
-            <text x="0" y="30" text-anchor="middle" font-size="10" fill="#666">Margin: {:.1} dB</text>
+            <text x="0" y="35" text-anchor="middle" font-size="10" fill="#666">Frequency Dependent Loss: {:.1} dB</text>
+            <text x="0" y="50" text-anchor="middle" font-size="10" fill="#666">Frequency: {}</text>
+            <text x="0" y="65" text-anchor="middle" font-size="10" fill="#666">Distance: {:.1} m</text>
         </g>
         "##,
         (tx_x + rx_x + component_width) / 2,
         component_y + component_height / 2 - 20,
         path_loss,
-        margin
+        frequency_dependent_loss,
+        frequency_str,
+        distance
     ));
 
     // Result Stats
@@ -164,14 +218,23 @@ fn generate_svg(budget: &LinkBudget) -> String {
         r##"
         <g transform="translate({}, {})">
             <text x="0" y="0" text-anchor="middle" font-weight="bold" fill="#333">Results</text>
-            <text x="0" y="20" text-anchor="middle" font-size="14" fill="#333">Rx Power: {:.1} dBm</text>
-            <text x="0" y="40" text-anchor="middle" font-size="14" fill="#333">SNR: {:.1} dB</text>
+            <g transform="translate(0, 20)" font-size="14" fill="#333">
+                <text x="-5" y="0" text-anchor="end">SNR:</text>
+                <text x="5" y="0" text-anchor="start">{:.1} dB</text>
+
+                <text x="-5" y="20" text-anchor="end">Bandwidth:</text>
+                <text x="5" y="20" text-anchor="start">{}</text>
+
+                <text x="-5" y="40" text-anchor="end">PHY Rate:</text>
+                <text x="5" y="40" text-anchor="start">{}</text>
+            </g>
         </g>
         "##,
         width / 2,
-        height - 50,
-        rx_power,
-        snr
+        height - 100,
+        snr,
+        bandwidth_str,
+        phy_rate_str
     ));
 
     svg.push_str("</svg>");

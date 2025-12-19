@@ -92,14 +92,14 @@ impl Command {
             name: "Test Link",
             bandwidth: 10e6,
             transmitter: Transmitter {
-                output_power: 40.0,
-                gain: 10.0,
+                output_power: -20.0,
+                gain: 20.0,
                 bandwidth: 10e6,
             },
             receiver: Receiver {
-                gain: 20.0,
+                gain: 10.0,
                 temperature: 290.0,
-                noise_figure: 5.0,
+                noise_figure: 4.0,
                 bandwidth: 10e6,
             },
             path_loss: PathLoss {
