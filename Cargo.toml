@@ -7,8 +7,9 @@ homepage = "https://github.com/iancleary/linkbudget"
 license = "MIT"
 name = "linkbudget"
 repository = "https://github.com/iancleary/linkbudget"
-version = "0.0.12"
+version = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+rfconversions = "0.5.0"

@@ -1,4 +1,4 @@
-use crate::fspl::SlantRange;
+use crate::path_loss::PathLoss;
 use crate::phy::PhyRate;
 use crate::receiver::Receiver;
 use crate::transmitter::Transmitter;
@@ -9,33 +9,34 @@ use crate::transmitter::Transmitter;
 
 pub struct LinkBudget {
     pub name: &'static str,
-    pub frequency: f64,
-    pub bandwidth: f64,
-    pub transmitter: Transmitter,
-    pub receiver: Receiver,
-    pub elevation_angle_degrees: f64,
-    pub altitude: f64,
-    pub rain_fade: f64,
+    pub bandwidth: f64,           // in Hz
+    pub transmitter: Transmitter, // you should include any pointing loss, etc. here
+    pub receiver: Receiver,       // you should include any pointing loss, etc. here
+    pub path_loss: PathLoss,      // you may calculate this yourself for various situations
+    // the frequency dependence is really an antenna effect (for free space)
+    pub frequency_dependent_loss: Option<f64>, // optional fade margin, such as rain fade, obstacles, etc.
+                                               // this is the part that generally has a frequency dependence
+                                               // rain fade, obstacle penetration, atmospheric absorption, etc.
 }
 
 impl LinkBudget {
-    pub fn fspl(&self) -> f64 {
-        let slant_range: f64 = SlantRange {
-            elevation_angle_degrees: self.elevation_angle_degrees,
-            altitude: self.altitude,
-        }
-        .calculate();
+    pub fn path_loss(&self) -> f64 {
+        let path_loss_in_db: f64 = self.path_loss.calculate();
 
-        crate::fspl::calculate_free_space_path_loss(self.frequency, slant_range)
+        let mut total_path_loss_in_db: f64 = path_loss_in_db;
+        if let Some(frequency_dependent_loss) = self.frequency_dependent_loss {
+            total_path_loss_in_db += frequency_dependent_loss;
+        }
+
+        total_path_loss_in_db
     }
 
     pub fn pin_at_receiver(&self) -> f64 {
-        let free_space_path_loss = self.fspl();
+        let path_loss_in_db = self.path_loss();
 
         // Assumes receiver input power is spread across the bandwidth
-
         // pin_at_receiver =
-        self.transmitter.output_power + self.transmitter.gain - free_space_path_loss - self.rain_fade + self.receiver.gain
+        self.transmitter.output_power + self.transmitter.gain - path_loss_in_db + self.receiver.gain
     }
     pub fn snr(&self) -> f64 {
         // returns value in dB
@@ -54,4 +55,3 @@ impl LinkBudget {
         }
     }
 }
-

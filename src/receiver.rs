@@ -1,3 +1,6 @@
+use rfconversions::noise::noise_power_from_bandwidth;
+use rfconversions::power::watts_to_dbm;
+
 pub struct Receiver {
     pub gain: f64,         // dB
     pub temperature: f64,  // K
@@ -8,9 +11,9 @@ pub struct Receiver {
 impl Receiver {
     pub fn calculate_noise_floor(&self) -> f64 {
         let receiver_noise_floor_power =
-            crate::conversions::noise::noise_power_from_bandwidth(self.temperature, self.bandwidth);
+            noise_power_from_bandwidth(self.temperature, self.bandwidth);
 
-        crate::conversions::power::watts_to_dbm(receiver_noise_floor_power)
+        watts_to_dbm(receiver_noise_floor_power)
     }
 
     pub fn calculate_noise_power(&self) -> f64 {
