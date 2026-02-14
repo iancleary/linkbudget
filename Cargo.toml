@@ -12,4 +12,4 @@ version = "0.5.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rfconversions = "0.5.0"
+rfconversions = "0.5.1"
