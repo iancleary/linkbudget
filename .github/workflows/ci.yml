@@ -24,6 +24,6 @@ jobs:
         run: cargo test --verbose
       - name: Publish (on tag)
         if: github.ref_type == 'tag'
-        run: cargo publish --verbose --allow-dirty
+        run: cargo publish --verbose
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
