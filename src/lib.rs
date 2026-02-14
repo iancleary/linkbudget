@@ -1,16 +1,22 @@
 mod budget;
 pub mod cli;
 mod constants;
+mod doppler;
 mod file_operations;
 mod open;
 mod orbits;
 mod path_loss;
+mod pfd;
 mod phy;
 mod plot;
+mod quantization;
 mod receiver;
 mod transmitter;
 
 pub use budget::LinkBudget;
+pub use doppler::*;
 pub use path_loss::PathLoss;
+pub use pfd::*;
+pub use quantization::*;
 pub use receiver::Receiver;
 pub use transmitter::Transmitter;
