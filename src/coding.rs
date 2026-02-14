@@ -16,15 +16,15 @@
 //!
 //! ## Common Coding Gains (at BER = 1e-5)
 //!
-//! | Code | Rate | Coding Gain |
-//! |------|------|-------------|
-//! | Convolutional (K=7) | 1/2 | ~5.0 dB |
-//! | Convolutional (K=7) | 3/4 | ~3.5 dB |
-//! | Turbo | 1/2 | ~7.5 dB |
-//! | Turbo | 3/4 | ~5.5 dB |
-//! | LDPC (DVB-S2) | 1/2 | ~8.0 dB |
-//! | LDPC (DVB-S2) | 3/4 | ~6.5 dB |
-//! | LDPC (DVB-S2) | 9/10 | ~5.0 dB |
+//! | Code                | Rate | Coding Gain |
+//! |---------------------|------|-------------|
+//! | Convolutional (K=7) | 1/2  | ~5.0 dB     |
+//! | Convolutional (K=7) | 3/4  | ~3.5 dB     |
+//! | Turbo               | 1/2  | ~7.5 dB     |
+//! | Turbo               | 3/4  | ~5.5 dB     |
+//! | LDPC (DVB-S2)       | 1/2  | ~8.0 dB     |
+//! | LDPC (DVB-S2)       | 3/4  | ~6.5 dB     |
+//! | LDPC (DVB-S2)       | 9/10 | ~5.0 dB     |
 //!
 //! ## References
 //!
