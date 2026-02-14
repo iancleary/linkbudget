@@ -1,6 +1,7 @@
 pub mod ber;
 mod budget;
 pub mod cli;
+pub mod coding;
 mod constants;
 mod doppler;
 pub mod energy;
@@ -18,7 +19,8 @@ mod receiver;
 pub mod sensitivity;
 mod transmitter;
 
-pub use ber::{ber, ber_from_db, required_eb_no_db};
+pub use ber::{ber, ber_from_db, link_margin_db, required_eb_no_db};
+pub use coding::{CodedModulation, FecCode};
 pub use budget::LinkBudget;
 pub use doppler::*;
 pub use energy::*;

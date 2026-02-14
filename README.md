@@ -22,6 +22,8 @@ RF link budget analysis for satellite and terrestrial communication systems.
 | **BER** | Theoretical BER curves (erfc/Q-function), required Eb/No for target BER |
 | **Sensitivity** | Receiver minimum detectable signal from modulation, code rate, NF, target BER |
 | **EVM** | Error Vector Magnitude ↔ SNR conversions and margin checking |
+| **Coding (FEC)** | CodedModulation, FecCode enum, coding gain constants, DVB-S2 presets |
+| **Link Budget Integration** | Eb/No, BER, link margin, and throughput directly from LinkBudget |
 
 ## Example
 
@@ -181,6 +183,65 @@ println!("SNR for 5% EVM: {:.1} dB", snr);
 
 let (pass, margin) = evm::evm_margin(5.0, 8.0);
 println!("Pass: {}, margin: {:.1} dB", pass, margin);
+```
+
+## Coded Modulation (FEC)
+
+```rust
+use linkbudget::coding::{self, CodedModulation, FecCode};
+use linkbudget::Modulation;
+
+// DVB-S2 QPSK rate 3/4 (LDPC)
+let cm = coding::dvbs2_qpsk_r34();
+println!("{}", cm); // "QPSK + LDPC (R=0.75)"
+
+// Spectral efficiency and throughput
+println!("η = {:.2} bits/s/Hz", cm.spectral_efficiency()); // 1.50
+println!("Throughput in 36 MHz: {:.0} Mbps", cm.throughput_bps(36e6) / 1e6); // 54
+
+// Required Eb/No with coding gain
+let req = cm.required_eb_no_db(1e-5).unwrap();
+println!("Required Eb/No: {:.1} dB", req); // ~3.1 dB (vs ~9.6 uncoded)
+
+// Link margin
+let margin = cm.link_margin_db(8.0, 1e-5).unwrap();
+println!("Link margin at 8 dB Eb/No: {:.1} dB", margin);
+
+// Or build your own: 16-QAM + Turbo rate 1/2
+let custom = CodedModulation::new(
+    Modulation::Mqam(16),
+    FecCode::Turbo { rate: 0.5 },
+);
+```
+
+## LinkBudget Integration
+
+```rust
+use linkbudget::{LinkBudget, PathLoss, Transmitter, Receiver, Modulation};
+use linkbudget::coding;
+
+let budget = LinkBudget {
+    name: "Ka-band LEO downlink",
+    bandwidth: 36e6,
+    transmitter: Transmitter { output_power: 10.0, gain: 35.0, bandwidth: 36e6 },
+    receiver: Receiver { gain: 40.0, temperature: 290.0, noise_figure: 2.0, bandwidth: 36e6 },
+    path_loss: PathLoss { frequency: 20e9, distance: 550e3 },
+    frequency_dependent_loss: Some(3.0),
+};
+
+// Modulation-aware analysis
+println!("C/No: {:.1} dB·Hz", budget.c_over_no());
+println!("Eb/No (QPSK): {:.1} dB", budget.eb_no_db(&Modulation::Qpsk));
+println!("BER (QPSK uncoded): {:.2e}", budget.ber(&Modulation::Qpsk));
+
+let margin = budget.link_margin_db(&Modulation::Qpsk, 1e-5).unwrap();
+println!("Link margin (uncoded): {:.1} dB", margin);
+
+// With FEC coding
+let coded = coding::dvbs2_qpsk_r34();
+println!("BER (coded): {:.2e}", budget.ber_coded(&coded));
+println!("Throughput: {:.0} Mbps", budget.throughput_bps(&coded) / 1e6);
+println!("Coded margin: {:.1} dB", budget.link_margin_coded_db(&coded, 1e-5).unwrap());
 ```
 
 ## CLI

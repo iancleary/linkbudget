@@ -78,6 +78,18 @@ pub fn ber_from_db(eb_no_db: f64, modulation: &Modulation) -> f64 {
     ber(eb_no_linear, modulation)
 }
 
+/// Link margin in dB: actual Eb/No minus required Eb/No for a target BER.
+///
+/// Positive = link closes with headroom. Negative = link does not close.
+pub fn link_margin_db(
+    actual_eb_no_db: f64,
+    target_ber: f64,
+    modulation: &Modulation,
+) -> Option<f64> {
+    let required = required_eb_no_db(target_ber, modulation)?;
+    Some(actual_eb_no_db - required)
+}
+
 /// Required Eb/No (dB) for a target BER, found by bisection search.
 /// Returns None if no solution found in [−5, 50] dB range.
 pub fn required_eb_no_db(target_ber: f64, modulation: &Modulation) -> Option<f64> {
