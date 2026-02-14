@@ -221,22 +221,22 @@ println!("Received freq: {:.6} GHz", received / 1e9);
 ## Power Flux Density
 
 ```rust
-use linkbudget::pfd;
+use linkbudget::{power_flux_density_dbw_per_m2, pfd_per_mhz};
 
-let pfd_val = pfd::power_flux_density_dbw_per_m2(45.0, 550e3);
-println!("PFD: {:.1} dBW/m²", pfd_val);
+let pfd = power_flux_density_dbw_per_m2(45.0, 550e3);
+println!("PFD: {:.1} dBW/m²", pfd);
 
-let pfd_mhz = pfd::pfd_per_mhz(45.0, 550e3, 36.0);
+let pfd_mhz = pfd_per_mhz(45.0, 550e3, 36.0);
 println!("PFD/MHz: {:.1} dBW/m²/MHz", pfd_mhz);
 ```
 
 ## Quantization
 
 ```rust
-use linkbudget::quantization;
+use linkbudget::{quantization_snr_db, enob_from_snr};
 
-println!("12-bit SNR: {:.2} dB", quantization::quantization_snr_db(12)); // 74.00
-println!("ENOB at 65 dB: {:.1} bits", quantization::enob_from_snr(65.0)); // 10.5
+println!("12-bit SNR: {:.2} dB", quantization_snr_db(12)); // 74.00
+println!("ENOB at 65 dB: {:.1} bits", enob_from_snr(65.0)); // 10.5
 ```
 
 ## CLI
