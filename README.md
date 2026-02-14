@@ -135,11 +135,38 @@ println!("Eb/No: {:.1} dB", eb_no);
 use linkbudget::{Modulation, sensitivity};
 
 // QPSK, 10 Mbps, rate-3/4, NF=3 dB, target BER=1e-6, 2 dB impl loss
-let sens = sensitivity::sensitivity_dbm(
+
+// Matched filter (root-raised-cosine) — ideal, α-independent
+let matched = sensitivity::sensitivity_matched_filter_dbm(
+    &Modulation::Qpsk, 10e6, 0.75, 3.0, 1e-6, 2.0,
+).unwrap();
+println!("Matched filter sensitivity: {:.1} dBm", matched);
+
+// Bandpass filter — practical, includes roll-off penalty
+let bandpass = sensitivity::sensitivity_bandpass_dbm(
     &Modulation::Qpsk, 10e6, 0.75, 3.0, 1e-6, 2.0, 0.35,
 ).unwrap();
-println!("Sensitivity: {:.1} dBm", sens);
+println!("Bandpass sensitivity (α=0.35): {:.1} dBm", bandpass);
+
+// Roll-off penalty: how much worse bandpass is vs matched
+let penalty = sensitivity::rolloff_penalty_db(0.35);
+println!("Roll-off penalty: {:.2} dB", penalty); // ~1.30 dB
 ```
+
+### Roll-Off Factor (α)
+
+The roll-off factor α controls the excess bandwidth of raised-cosine pulse shaping:
+
+| α | Excess BW | Sensitivity Penalty |
+|------|-----------|---------------------|
+| 0.00 | 0% (brick-wall, impractical) | 0.00 dB |
+| 0.20 | 20% (DVB-S2) | 0.79 dB |
+| 0.25 | 25% | 0.97 dB |
+| 0.35 | 35% (legacy DVB-S) | 1.30 dB |
+| 0.50 | 50% | 1.76 dB |
+| 1.00 | 100% | 3.01 dB |
+
+With a matched filter (RRC at TX + RX), noise bandwidth = symbol rate regardless of α, so sensitivity is unaffected. The penalty applies when using a simple bandpass filter set to the occupied bandwidth Rs×(1+α).
 
 ## EVM
 

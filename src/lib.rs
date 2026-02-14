@@ -28,5 +28,8 @@ pub use path_loss::PathLoss;
 pub use pfd::*;
 pub use quantization::*;
 pub use receiver::Receiver;
-pub use sensitivity::{noise_floor_dbm, sensitivity_dbm, sensitivity_from_snr_dbm};
+pub use sensitivity::{
+    noise_floor_dbm, rolloff_penalty_db, sensitivity_bandpass_dbm,
+    sensitivity_dbm, sensitivity_from_snr_dbm, sensitivity_matched_filter_dbm,
+};
 pub use transmitter::Transmitter;
