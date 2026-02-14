@@ -1,8 +1,12 @@
+pub mod ber;
 mod budget;
 pub mod cli;
 mod constants;
 mod doppler;
+pub mod energy;
+pub mod evm;
 mod file_operations;
+pub mod modulation;
 mod open;
 mod orbits;
 mod path_loss;
@@ -11,12 +15,21 @@ mod phy;
 mod plot;
 mod quantization;
 mod receiver;
+pub mod sensitivity;
 mod transmitter;
 
+pub use ber::{ber, ber_from_db, required_eb_no_db};
 pub use budget::LinkBudget;
 pub use doppler::*;
+pub use energy::*;
+pub use evm::*;
+pub use modulation::Modulation;
 pub use path_loss::PathLoss;
 pub use pfd::*;
 pub use quantization::*;
 pub use receiver::Receiver;
+pub use sensitivity::{
+    noise_floor_dbm, rolloff_penalty_db, sensitivity_bandpass_dbm,
+    sensitivity_dbm, sensitivity_from_snr_dbm, sensitivity_matched_filter_dbm,
+};
 pub use transmitter::Transmitter;
