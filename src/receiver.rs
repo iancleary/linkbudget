@@ -20,6 +20,11 @@ impl Receiver {
         self.calculate_noise_floor() + self.noise_figure
     }
 
+    pub fn g_over_t_db(&self) -> f64 {
+        // G/T in dB/K
+        self.gain - 10.0 * self.temperature.log10()
+    }
+
     pub fn calculate_snr(&self, input_power: f64) -> f64 {
         let receiver_noise_floor_dbm = self.calculate_noise_floor();
 
@@ -62,6 +67,22 @@ mod tests {
 
         // noise floor + noise figure
         assert_eq!(-90.97722915699808, noise_power);
+    }
+
+    #[test]
+    fn g_over_t_db() {
+        let receiver = Receiver {
+            gain: 40.0,
+            temperature: 290.0,
+            noise_figure: 3.0,
+            bandwidth: 100.0e6,
+        };
+
+        let g_over_t = receiver.g_over_t_db();
+
+        // 40 - 10*log10(290) ≈ 40 - 24.6237 ≈ 15.3763
+        let expected = 40.0 - 10.0 * 290.0_f64.log10();
+        assert!((g_over_t - expected).abs() < 1e-10);
     }
 
     #[test]
