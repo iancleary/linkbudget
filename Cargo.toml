@@ -1,5 +1,5 @@
 [package]
-authors = ["Ian Cleary <rust@iancleary.me>"]
+authors = ["Ian Cleary <iancleary@hey.com>"]
 description = "A link budget toolbox for satellite communications"
 documentation = "https://docs.rs/linkbudget"
 edition = "2021"
@@ -7,9 +7,9 @@ homepage = "https://github.com/iancleary/linkbudget"
 license = "MIT"
 name = "linkbudget"
 repository = "https://github.com/iancleary/linkbudget"
-version = "0.5.0"
+version = "0.5.1"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rfconversions = "0.5.1"
+rfconversions = "0.6.0"
