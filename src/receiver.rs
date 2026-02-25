@@ -1,14 +1,41 @@
 use rfconversions::noise::noise_power_from_bandwidth;
 use rfconversions::power::watts_to_dbm;
 
+/// A receiver in a link budget, characterized by antenna gain, system noise
+/// temperature, noise figure, and bandwidth.
+///
+/// # Examples
+///
+/// ```
+/// use linkbudget::receiver::Receiver;
+///
+/// let rx = Receiver {
+///     gain: 40.0,          // 40 dBi dish
+///     temperature: 290.0,  // 290 K ambient
+///     noise_figure: 1.5,   // 1.5 dB LNA
+///     bandwidth: 36.0e6,   // 36 MHz
+/// };
+///
+/// // G/T is a key figure of merit for receive systems
+/// let g_over_t = rx.g_over_t_db();
+/// assert!(g_over_t > 15.0); // 40 - 24.6 ≈ 15.4 dB/K
+/// ```
 pub struct Receiver {
-    pub gain: f64,         // dB
-    pub temperature: f64,  // K
-    pub noise_figure: f64, // dB
-    pub bandwidth: f64,    // Hz
+    /// Receive antenna gain in dBi
+    pub gain: f64,
+    /// System noise temperature in Kelvin
+    pub temperature: f64,
+    /// Receiver noise figure in dB
+    pub noise_figure: f64,
+    /// Receiver bandwidth in Hz
+    pub bandwidth: f64,
 }
 
 impl Receiver {
+    /// Thermal noise floor in dBm: 10·log₁₀(k·T·B) converted to dBm.
+    ///
+    /// This is the fundamental noise power set by temperature and bandwidth,
+    /// before adding the receiver's noise figure contribution.
     pub fn calculate_noise_floor(&self) -> f64 {
         let receiver_noise_floor_power =
             noise_power_from_bandwidth(self.temperature, self.bandwidth);
@@ -16,15 +43,23 @@ impl Receiver {
         watts_to_dbm(receiver_noise_floor_power)
     }
 
+    /// Total receiver noise power in dBm (noise floor + noise figure).
     pub fn calculate_noise_power(&self) -> f64 {
         self.calculate_noise_floor() + self.noise_figure
     }
 
+    /// Receive system figure of merit G/T in dB/K.
+    ///
+    /// G/T = antenna gain (dBi) − 10·log₁₀(T_sys). Higher is better.
+    /// Used in link budgets to characterize receive sensitivity independent
+    /// of bandwidth.
     pub fn g_over_t_db(&self) -> f64 {
-        // G/T in dB/K
         self.gain - 10.0 * self.temperature.log10()
     }
 
+    /// Signal-to-noise ratio in dB for a given input power (dBm).
+    ///
+    /// SNR = input_power − (noise_floor + noise_figure)
     pub fn calculate_snr(&self, input_power: f64) -> f64 {
         let receiver_noise_floor_dbm = self.calculate_noise_floor();
 

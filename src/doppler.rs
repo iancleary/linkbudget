@@ -1,17 +1,47 @@
-/// Doppler shift in Hz for a given transmitted frequency and radial velocity
-/// radial_velocity_m_s: positive = approaching, negative = receding
+/// Doppler shift in Hz for a given transmitted frequency and radial velocity.
+///
+/// Δf = f · v_r / c (non-relativistic approximation, valid for v << c).
+///
+/// Convention: positive `radial_velocity_m_s` = approaching (upshift),
+/// negative = receding (downshift).
+///
+/// # Examples
+///
+/// ```
+/// use linkbudget::doppler::doppler_shift_hz;
+///
+/// // LEO at Ku-band: ~304 kHz shift at max radial velocity
+/// let shift = doppler_shift_hz(12.0e9, 7600.0);
+/// assert!((shift - 304_210.0).abs() < 100.0);
+///
+/// // Receding gives negative shift
+/// assert!(doppler_shift_hz(12.0e9, -7600.0) < 0.0);
+/// ```
 pub fn doppler_shift_hz(frequency_hz: f64, radial_velocity_m_s: f64) -> f64 {
     frequency_hz * radial_velocity_m_s / 299_792_458.0
 }
 
-/// Received frequency accounting for Doppler
+/// Received frequency accounting for Doppler: f_rx = f_tx + Δf.
+///
+/// # Examples
+///
+/// ```
+/// use linkbudget::doppler::doppler_received_frequency;
+///
+/// let f_rx = doppler_received_frequency(12.0e9, 7600.0);
+/// assert!(f_rx > 12.0e9); // approaching → higher frequency
+/// ```
 pub fn doppler_received_frequency(frequency_hz: f64, radial_velocity_m_s: f64) -> f64 {
     frequency_hz + doppler_shift_hz(frequency_hz, radial_velocity_m_s)
 }
 
-/// Maximum radial velocity for a circular orbit at given altitude and elevation angle
-/// At horizon (0° elevation), radial velocity ≈ orbital velocity
-/// At zenith (90° elevation), radial velocity ≈ 0
+/// Maximum radial velocity component for a circular orbit at a given elevation angle.
+///
+/// At horizon (0° elevation), the radial component equals the full orbital speed.
+/// At zenith (90° elevation), the satellite moves perpendicular to the line of
+/// sight, so radial velocity ≈ 0.
+///
+/// v_radial = v_orbital · cos(elevation)
 pub fn max_radial_velocity_circular(orbital_speed_m_s: f64, elevation_angle_degrees: f64) -> f64 {
     let elevation_rad = elevation_angle_degrees * std::f64::consts::PI / 180.0;
     orbital_speed_m_s * elevation_rad.cos()
