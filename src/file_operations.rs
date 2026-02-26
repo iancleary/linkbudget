@@ -1,16 +1,21 @@
+//! File path classification and URL conversion utilities.
+
 use std::path::Path;
 
+/// Classification of a file path type.
 #[derive(Debug)]
 pub struct FilePathConfig {
+    /// Path starts with `/`.
     pub unix_absolute_path: bool,
+    /// Path starts with a drive letter or UNC prefix.
     pub windows_absolute_path: bool,
+    /// Relative path containing directory separators.
     pub relative_path_with_separators: bool,
+    /// A single filename with no separators.
     pub bare_filename: bool,
 }
 
-// prevents downstream problems with path.parent() when passing
-// in a bare filename, such as measured.s2p
-// this function help us adjust to ./measured.s2p so logic is easier later
+/// Classify a path string into one of four categories.
 pub fn get_file_path_config(path_str: &str) -> FilePathConfig {
     let path = Path::new(path_str);
     let mut unix_absolute_path = false;
@@ -84,6 +89,7 @@ fn path_to_url_manual(path_str: &str) -> String {
     }
 }
 
+/// Convert a file path to a `file://` URL.
 pub fn get_file_url(file_path: &String) -> String {
     println!("file_path in get_file_url function: {}", file_path);
     let mut path_str: String = std::fs::canonicalize(file_path)

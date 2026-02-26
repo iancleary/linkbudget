@@ -48,8 +48,10 @@
 use crate::ber;
 use crate::modulation::Modulation;
 
-/// Thermal noise floor in dBm for a given bandwidth
-/// N = -174 dBm/Hz + 10·log10(BW_Hz) + NF_dB
+/// Thermal noise floor in dBm for a given bandwidth.
+///
+/// `N = -174 dBm/Hz + 10·log10(BW_Hz) + NF_dB`
+#[must_use]
 pub fn noise_floor_dbm(bandwidth_hz: f64, noise_figure_db: f64) -> f64 {
     -174.0 + 10.0 * bandwidth_hz.log10() + noise_figure_db
 }
@@ -74,10 +76,11 @@ pub fn noise_floor_dbm(bandwidth_hz: f64, noise_figure_db: f64) -> f64 {
 ///
 /// # Returns
 /// Minimum input power in dBm to achieve the target BER.
+#[must_use]
 pub fn sensitivity_matched_filter_dbm(
     modulation: &Modulation,
     info_bit_rate_bps: f64,
-    code_rate: f64,
+    _code_rate: f64,
     noise_figure_db: f64,
     target_ber: f64,
     implementation_loss_db: f64,
@@ -86,7 +89,9 @@ pub fn sensitivity_matched_filter_dbm(
 
     // Sensitivity = kT (dBm/Hz) + NF + Eb/No + 10·log10(Rb) + impl_loss
     // where kT = -174 dBm/Hz at 290 K
-    let sensitivity = -174.0 + noise_figure_db + required_eb_no_db
+    let sensitivity = -174.0
+        + noise_figure_db
+        + required_eb_no_db
         + 10.0 * info_bit_rate_bps.log10()
         + implementation_loss_db;
 
@@ -115,6 +120,7 @@ pub fn sensitivity_matched_filter_dbm(
 ///
 /// # Returns
 /// Minimum input power in dBm to achieve the target BER.
+#[must_use]
 pub fn sensitivity_bandpass_dbm(
     modulation: &Modulation,
     info_bit_rate_bps: f64,
@@ -125,8 +131,12 @@ pub fn sensitivity_bandpass_dbm(
     rolloff: f64,
 ) -> Option<f64> {
     let matched = sensitivity_matched_filter_dbm(
-        modulation, info_bit_rate_bps, code_rate,
-        noise_figure_db, target_ber, implementation_loss_db,
+        modulation,
+        info_bit_rate_bps,
+        code_rate,
+        noise_figure_db,
+        target_ber,
+        implementation_loss_db,
     )?;
 
     // Excess noise from wider-than-matched bandwidth
@@ -139,6 +149,7 @@ pub fn sensitivity_bandpass_dbm(
 ///
 /// The `rolloff` parameter is accepted but ignored (matched filter assumption).
 /// Prefer [`sensitivity_matched_filter_dbm`] or [`sensitivity_bandpass_dbm`] directly.
+#[must_use]
 pub fn sensitivity_dbm(
     modulation: &Modulation,
     info_bit_rate_bps: f64,
@@ -149,8 +160,12 @@ pub fn sensitivity_dbm(
     _rolloff: f64,
 ) -> Option<f64> {
     sensitivity_matched_filter_dbm(
-        modulation, info_bit_rate_bps, code_rate,
-        noise_figure_db, target_ber, implementation_loss_db,
+        modulation,
+        info_bit_rate_bps,
+        code_rate,
+        noise_figure_db,
+        target_ber,
+        implementation_loss_db,
     )
 }
 
@@ -171,12 +186,15 @@ pub fn sensitivity_dbm(
 /// | 0.35 | 1.30 dB |
 /// | 0.50 | 1.76 dB |
 /// | 1.00 | 3.01 dB |
+#[must_use]
 pub fn rolloff_penalty_db(rolloff: f64) -> f64 {
     10.0 * (1.0 + rolloff).log10()
 }
 
-/// Simplified sensitivity: just noise floor + required SNR
+/// Simplified sensitivity: just noise floor + required SNR.
+///
 /// For quick estimates when you know the required SNR directly.
+#[must_use]
 pub fn sensitivity_from_snr_dbm(
     bandwidth_hz: f64,
     noise_figure_db: f64,
@@ -210,26 +228,32 @@ mod tests {
         // BPSK, 1 Mbps, rate 1 (uncoded), NF=3 dB, BER=1e-5, 0 dB impl loss
         // Required Eb/No ≈ 9.6 dB
         // Sensitivity ≈ -174 + 3 + 9.6 + 60 = -101.4 dBm
-        let sens = sensitivity_matched_filter_dbm(
-            &Modulation::Bpsk, 1e6, 1.0, 3.0, 1e-5, 0.0,
-        ).unwrap();
-        assert!(sens > -103.0 && sens < -100.0,
-            "Expected ~-101.4 dBm, got {}", sens);
+        let sens =
+            sensitivity_matched_filter_dbm(&Modulation::Bpsk, 1e6, 1.0, 3.0, 1e-5, 0.0).unwrap();
+        assert!(
+            sens > -103.0 && sens < -100.0,
+            "Expected ~-101.4 dBm, got {}",
+            sens
+        );
     }
 
     #[test]
     fn sensitivity_bandpass_worse_than_matched() {
-        let matched = sensitivity_matched_filter_dbm(
-            &Modulation::Qpsk, 10e6, 0.75, 3.0, 1e-6, 0.0,
-        ).unwrap();
-        let bandpass = sensitivity_bandpass_dbm(
-            &Modulation::Qpsk, 10e6, 0.75, 3.0, 1e-6, 0.0, 0.35,
-        ).unwrap();
+        let matched =
+            sensitivity_matched_filter_dbm(&Modulation::Qpsk, 10e6, 0.75, 3.0, 1e-6, 0.0).unwrap();
+        let bandpass =
+            sensitivity_bandpass_dbm(&Modulation::Qpsk, 10e6, 0.75, 3.0, 1e-6, 0.0, 0.35).unwrap();
         // Bandpass should be worse (higher power needed) by ~1.3 dB
-        assert!(bandpass > matched, "Bandpass sensitivity should be worse than matched filter");
+        assert!(
+            bandpass > matched,
+            "Bandpass sensitivity should be worse than matched filter"
+        );
         let diff = bandpass - matched;
-        assert!((diff - 1.303).abs() < 0.01,
-            "Expected ~1.3 dB penalty for α=0.35, got {:.3} dB", diff);
+        assert!(
+            (diff - 1.303).abs() < 0.01,
+            "Expected ~1.3 dB penalty for α=0.35, got {:.3} dB",
+            diff
+        );
     }
 
     #[test]
@@ -265,30 +289,34 @@ mod tests {
         ];
         for (alpha, expected) in cases {
             let penalty = rolloff_penalty_db(alpha);
-            assert!((penalty - expected).abs() < 0.01,
-                "α={}: expected {:.2} dB, got {:.2} dB", alpha, expected, penalty);
+            assert!(
+                (penalty - expected).abs() < 0.01,
+                "α={}: expected {:.2} dB, got {:.2} dB",
+                alpha,
+                expected,
+                penalty
+            );
         }
     }
 
     #[test]
     fn sensitivity_legacy_wrapper() {
         // Legacy wrapper should match matched-filter result
-        let legacy = sensitivity_dbm(
-            &Modulation::Bpsk, 1e6, 1.0, 3.0, 1e-5, 0.0, 0.35,
-        ).unwrap();
-        let matched = sensitivity_matched_filter_dbm(
-            &Modulation::Bpsk, 1e6, 1.0, 3.0, 1e-5, 0.0,
-        ).unwrap();
+        let legacy = sensitivity_dbm(&Modulation::Bpsk, 1e6, 1.0, 3.0, 1e-5, 0.0, 0.35).unwrap();
+        let matched =
+            sensitivity_matched_filter_dbm(&Modulation::Bpsk, 1e6, 1.0, 3.0, 1e-5, 0.0).unwrap();
         assert!((legacy - matched).abs() < 1e-10);
     }
 
     #[test]
     fn sensitivity_qpsk_10mbps() {
-        let sens = sensitivity_matched_filter_dbm(
-            &Modulation::Qpsk, 10e6, 0.75, 5.0, 1e-6, 2.0,
-        ).unwrap();
-        assert!(sens > -100.0 && sens < -75.0,
-            "Expected sensitivity in -100 to -75 dBm range, got {}", sens);
+        let sens =
+            sensitivity_matched_filter_dbm(&Modulation::Qpsk, 10e6, 0.75, 5.0, 1e-6, 2.0).unwrap();
+        assert!(
+            sens > -100.0 && sens < -75.0,
+            "Expected sensitivity in -100 to -75 dBm range, got {}",
+            sens
+        );
     }
 
     #[test]
@@ -301,13 +329,14 @@ mod tests {
 
     #[test]
     fn higher_rate_needs_more_power() {
-        let sens_1m = sensitivity_matched_filter_dbm(
-            &Modulation::Bpsk, 1e6, 1.0, 3.0, 1e-5, 0.0,
-        ).unwrap();
-        let sens_10m = sensitivity_matched_filter_dbm(
-            &Modulation::Bpsk, 10e6, 1.0, 3.0, 1e-5, 0.0,
-        ).unwrap();
-        assert!(sens_10m > sens_1m, "Higher bit rate should require more power");
+        let sens_1m =
+            sensitivity_matched_filter_dbm(&Modulation::Bpsk, 1e6, 1.0, 3.0, 1e-5, 0.0).unwrap();
+        let sens_10m =
+            sensitivity_matched_filter_dbm(&Modulation::Bpsk, 10e6, 1.0, 3.0, 1e-5, 0.0).unwrap();
+        assert!(
+            sens_10m > sens_1m,
+            "Higher bit rate should require more power"
+        );
         assert!(((sens_10m - sens_1m) - 10.0).abs() < 0.5);
     }
 }

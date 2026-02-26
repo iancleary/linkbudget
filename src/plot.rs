@@ -1,9 +1,12 @@
+//! HTML summary / SVG diagram generation for link budgets.
+
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
 use crate::budget::LinkBudget;
 
+/// Generate an HTML page with an SVG link-budget diagram.
 pub fn generate_html_summary(
     budget: &LinkBudget,
     output_path_str: &str,
@@ -80,7 +83,7 @@ fn generate_svg(budget: &LinkBudget) -> String {
 
     // Calculations for display
     let path_loss = budget.path_loss();
-    let rx_power = budget.pin_at_receiver();
+    let _rx_power = budget.pin_at_receiver();
     let snr = budget.snr();
     let phy_rate_bps = budget.phy_rate().bps();
 

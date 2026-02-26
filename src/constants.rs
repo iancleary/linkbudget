@@ -1,16 +1,38 @@
+//! Physical constants used in link budget and orbital calculations.
+
+/// Speed of light in vacuum (m/s).
+#[doc(alias = "c")]
 pub const SPEED_OF_LIGHT: f64 = 299792458.0;
+
+/// Mean radius of Earth (m).
 pub const RADIUS_OF_EARTH: f64 = 6371000.0;
+
+/// Mass of Earth (kg).
 // 5.972 * 10.0f64.powf(24.0);
 pub const MASS_OF_EARTH: f64 = 5.972e24;
+
+/// Mean radius of the Moon (m).
 pub const RADIUS_OF_MOON: f64 = 1737400.0;
+
+/// Mass of the Moon (kg).
 pub const MASS_OF_MOON: f64 = 7.34767309e22;
+
+/// Mean radius of the Sun (m).
 pub const RADIUS_OF_SUN: f64 = 695500000.0;
+
+/// Mass of the Sun (kg).
 pub const MASS_OF_SUN: f64 = 1.98847e30;
+
+/// Mean radius of Mars (m).
 pub const RADIUS_OF_MARS: f64 = 3389500.0;
+
+/// Mass of Mars (kg).
 pub const MASS_OF_MARS: f64 = 6.4165e23;
 
-// https://en.wikipedia.org/wiki/Gravitational_constant
-// 6.67430(15)×10−11 m3⋅kg−1⋅s−2
+/// Gravitational constant G (m³·kg⁻¹·s⁻²).
+///
+/// <https://en.wikipedia.org/wiki/Gravitational_constant>
+/// 6.67430(15)×10⁻¹¹ m³⋅kg⁻¹⋅s⁻²
 pub const GRAVITATIONAL_CONSTANT: f64 = 0.0000000000667430;
 
 #[cfg(test)]
