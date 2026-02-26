@@ -1,6 +1,9 @@
+//! Utilities for opening files in the default browser.
+
 use crate::file_operations;
 use std::process;
 
+/// Open a URL in the platform's default browser.
 pub fn browser(url: &str) {
     // 1. Determine the OS-specific command and arguments
     let (cmd, args) = if cfg!(target_os = "windows") {
@@ -25,6 +28,7 @@ pub fn browser(url: &str) {
     }
 }
 
+/// Open a generated plot HTML file in the browser.
 pub fn plot(file_path: String) {
     // opens plot in browser
 

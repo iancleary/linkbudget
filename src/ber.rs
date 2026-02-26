@@ -11,6 +11,7 @@ use crate::modulation::Modulation;
 
 /// Complementary error function approximation (erfc).
 /// Uses Abramowitz & Stegun approximation 7.1.26, max error ~1.5e-7.
+#[must_use]
 pub fn erfc(x: f64) -> f64 {
     if x < 0.0 {
         return 2.0 - erfc(-x);
@@ -18,25 +19,30 @@ pub fn erfc(x: f64) -> f64 {
     let t = 1.0 / (1.0 + 0.3275911 * x);
     let poly = t
         * (0.254829592
-            + t * (-0.284496736
-                + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+            + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
     poly * (-x * x).exp()
 }
 
 /// Q-function: Q(x) = 0.5 * erfc(x / sqrt(2))
+#[must_use]
 pub fn q_function(x: f64) -> f64 {
     0.5 * erfc(x / std::f64::consts::SQRT_2)
 }
 
-/// BER for BPSK/QPSK (they have the same BER vs Eb/No)
+/// BER for BPSK/QPSK (they have the same BER vs Eb/No).
+///
 /// BER = Q(sqrt(2 * Eb/No))
+#[doc(alias = "BER")]
+#[must_use]
 pub fn ber_bpsk(eb_no_linear: f64) -> f64 {
     q_function((2.0 * eb_no_linear).sqrt())
 }
 
-/// BER for M-PSK (M >= 4, Gray coded)
-/// BER ≈ (2/k) * Q(sqrt(2*k*Eb/No) * sin(π/M))
-/// where k = log2(M)
+/// BER for M-PSK (M >= 4, Gray coded).
+///
+/// BER ≈ (2/k) * Q(sqrt(2*k*Eb/No) * sin(π/M)), where k = log2(M).
+#[doc(alias = "BER")]
+#[must_use]
 pub fn ber_mpsk(eb_no_linear: f64, m: u32) -> f64 {
     if m == 2 {
         return ber_bpsk(eb_no_linear);
@@ -46,10 +52,12 @@ pub fn ber_mpsk(eb_no_linear: f64, m: u32) -> f64 {
     (2.0 / k) * q_function((2.0 * k * eb_no_linear).sqrt() * sin_term)
 }
 
-/// BER for rectangular M-QAM (Gray coded, M = 4, 16, 64, 256, ...)
-/// BER ≈ (4/k) * (1 - 1/√M) * Q(sqrt(3*k*Eb/No / (M-1)))
+/// BER for rectangular M-QAM (Gray coded, M = 4, 16, 64, 256, …).
 ///
+/// BER ≈ (4/k) * (1 - 1/√M) * Q(sqrt(3*k*Eb/No / (M-1))).
 /// For M=4 (QPSK), this reduces to the QPSK formula.
+#[doc(alias = "BER")]
+#[must_use]
 pub fn ber_mqam(eb_no_linear: f64, m: u32) -> f64 {
     if m == 4 {
         return ber_bpsk(eb_no_linear); // QPSK = BPSK in Eb/No
@@ -61,7 +69,9 @@ pub fn ber_mqam(eb_no_linear: f64, m: u32) -> f64 {
     coeff * q_function(arg)
 }
 
-/// BER for any supported modulation type
+/// BER for any supported modulation type.
+#[doc(alias = "BER")]
+#[must_use]
 pub fn ber(eb_no_linear: f64, modulation: &Modulation) -> f64 {
     match modulation {
         Modulation::Bpsk => ber_bpsk(eb_no_linear),
@@ -72,7 +82,10 @@ pub fn ber(eb_no_linear: f64, modulation: &Modulation) -> f64 {
     }
 }
 
-/// BER from Eb/No in dB
+/// BER from Eb/No in dB.
+#[doc(alias = "BER")]
+#[doc(alias = "Eb/N0")]
+#[must_use]
 pub fn ber_from_db(eb_no_db: f64, modulation: &Modulation) -> f64 {
     let eb_no_linear = 10.0_f64.powf(eb_no_db / 10.0);
     ber(eb_no_linear, modulation)
@@ -81,6 +94,8 @@ pub fn ber_from_db(eb_no_db: f64, modulation: &Modulation) -> f64 {
 /// Link margin in dB: actual Eb/No minus required Eb/No for a target BER.
 ///
 /// Positive = link closes with headroom. Negative = link does not close.
+#[doc(alias = "link margin")]
+#[must_use]
 pub fn link_margin_db(
     actual_eb_no_db: f64,
     target_ber: f64,
@@ -91,7 +106,10 @@ pub fn link_margin_db(
 }
 
 /// Required Eb/No (dB) for a target BER, found by bisection search.
-/// Returns None if no solution found in [−5, 50] dB range.
+///
+/// Returns `None` if no solution found in [−5, 50] dB range.
+#[doc(alias = "Eb/N0")]
+#[must_use]
 pub fn required_eb_no_db(target_ber: f64, modulation: &Modulation) -> Option<f64> {
     let mut lo = -5.0_f64;
     let mut hi = 50.0_f64;
@@ -162,7 +180,10 @@ mod tests {
         let eb_no = 10.0; // linear
         let ber_16 = ber_mqam(eb_no, 16);
         let ber_64 = ber_mqam(eb_no, 64);
-        assert!(ber_64 > ber_16, "64-QAM should have higher BER than 16-QAM at same Eb/No");
+        assert!(
+            ber_64 > ber_16,
+            "64-QAM should have higher BER than 16-QAM at same Eb/No"
+        );
     }
 
     #[test]
@@ -176,7 +197,11 @@ mod tests {
     fn required_eb_no_16qam_1e_minus_6() {
         // 16-QAM BER = 1e-6 requires Eb/No ≈ 14.4 dB
         let eb_no = required_eb_no_db(1e-6, &Modulation::Mqam(16)).unwrap();
-        assert!(eb_no > 13.0 && eb_no < 16.0, "Expected ~14.4 dB, got {}", eb_no);
+        assert!(
+            eb_no > 13.0 && eb_no < 16.0,
+            "Expected ~14.4 dB, got {}",
+            eb_no
+        );
     }
 
     #[test]
@@ -200,6 +225,9 @@ mod tests {
         let eb_no = 10.0_f64.powf(10.0 / 10.0);
         let ber_qpsk = ber(eb_no, &Modulation::Qpsk);
         let ber_8psk = ber(eb_no, &Modulation::Mpsk(8));
-        assert!(ber_8psk > ber_qpsk, "8-PSK should have higher BER than QPSK");
+        assert!(
+            ber_8psk > ber_qpsk,
+            "8-PSK should have higher BER than QPSK"
+        );
     }
 }

@@ -248,10 +248,9 @@ fn custom_coded_modulation() {
 
 #[test]
 fn sensitivity_matched_filter() {
-    let matched = sensitivity::sensitivity_matched_filter_dbm(
-        &Modulation::Qpsk, 10e6, 0.75, 3.0, 1e-6, 2.0,
-    )
-    .unwrap();
+    let matched =
+        sensitivity::sensitivity_matched_filter_dbm(&Modulation::Qpsk, 10e6, 0.75, 3.0, 1e-6, 2.0)
+            .unwrap();
     // Should be a reasonable sensitivity in -100 to -75 dBm range
     assert!(
         matched > -110.0 && matched < -70.0,
@@ -262,14 +261,12 @@ fn sensitivity_matched_filter() {
 
 #[test]
 fn sensitivity_bandpass_worse_than_matched() {
-    let matched = sensitivity::sensitivity_matched_filter_dbm(
-        &Modulation::Qpsk, 10e6, 0.75, 3.0, 1e-6, 2.0,
-    )
-    .unwrap();
-    let bandpass = sensitivity::sensitivity_bandpass_dbm(
-        &Modulation::Qpsk, 10e6, 0.75, 3.0, 1e-6, 2.0, 0.35,
-    )
-    .unwrap();
+    let matched =
+        sensitivity::sensitivity_matched_filter_dbm(&Modulation::Qpsk, 10e6, 0.75, 3.0, 1e-6, 2.0)
+            .unwrap();
+    let bandpass =
+        sensitivity::sensitivity_bandpass_dbm(&Modulation::Qpsk, 10e6, 0.75, 3.0, 1e-6, 2.0, 0.35)
+            .unwrap();
     assert!(bandpass > matched, "Bandpass should need more power");
 }
 

@@ -1,14 +1,27 @@
+//! Transmitter model for link budget calculations.
+
+/// A radio transmitter with output power, antenna gain, and bandwidth.
+#[doc(alias = "EIRP")]
 pub struct Transmitter {
-    pub output_power: f64, // dBm
-    pub gain: f64,         // dB
-    pub bandwidth: f64,    // Hz
+    /// Output power in dBm.
+    pub output_power: f64,
+    /// Antenna gain in dB.
+    pub gain: f64,
+    /// Bandwidth in Hz.
+    pub bandwidth: f64,
 }
 
 impl Transmitter {
+    /// Effective Isotropic Radiated Power in dBm.
+    #[doc(alias = "EIRP")]
+    #[must_use]
     pub fn eirp_dbm(&self) -> f64 {
         self.output_power + self.gain
     }
 
+    /// Effective Isotropic Radiated Power in dBW.
+    #[doc(alias = "EIRP")]
+    #[must_use]
     pub fn eirp_dbw(&self) -> f64 {
         self.eirp_dbm() - 30.0
     }

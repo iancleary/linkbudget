@@ -8,35 +8,51 @@
 //! - SNR = -20·log10(EVM_rms)
 //! - EVM is often expressed as a percentage: EVM% = EVM_rms × 100
 
-/// EVM (rms, fractional) from SNR in dB
-/// EVM_rms = 10^(-SNR_dB / 20)
+/// EVM (rms, fractional) from SNR in dB.
+///
+/// `EVM_rms = 10^(-SNR_dB / 20)`
+#[doc(alias = "EVM")]
+#[must_use]
 pub fn evm_from_snr_db(snr_db: f64) -> f64 {
     10.0_f64.powf(-snr_db / 20.0)
 }
 
-/// EVM as a percentage from SNR in dB
+/// EVM as a percentage from SNR in dB.
+#[doc(alias = "EVM")]
+#[must_use]
 pub fn evm_percent_from_snr_db(snr_db: f64) -> f64 {
     evm_from_snr_db(snr_db) * 100.0
 }
 
-/// SNR in dB from EVM (rms, fractional)
-/// SNR_dB = -20·log10(EVM_rms)
+/// SNR in dB from EVM (rms, fractional).
+///
+/// `SNR_dB = -20·log10(EVM_rms)`
+#[doc(alias = "EVM")]
+#[doc(alias = "SNR")]
+#[must_use]
 pub fn snr_db_from_evm(evm_rms: f64) -> f64 {
     -20.0 * evm_rms.log10()
 }
 
-/// SNR in dB from EVM percentage
+/// SNR in dB from EVM percentage.
+#[doc(alias = "EVM")]
+#[must_use]
 pub fn snr_db_from_evm_percent(evm_percent: f64) -> f64 {
     snr_db_from_evm(evm_percent / 100.0)
 }
 
-/// EVM from SNR linear (not dB)
+/// EVM from SNR linear (not dB).
+#[doc(alias = "EVM")]
+#[must_use]
 pub fn evm_from_snr_linear(snr_linear: f64) -> f64 {
     1.0 / snr_linear.sqrt()
 }
 
-/// Check if measured EVM meets a requirement
-/// Returns (pass, margin_db) where margin is how much better than required
+/// Check if measured EVM meets a requirement.
+///
+/// Returns `(pass, margin_db)` where margin is how much better than required.
+#[doc(alias = "EVM")]
+#[must_use]
 pub fn evm_margin(measured_evm_percent: f64, required_evm_percent: f64) -> (bool, f64) {
     let measured_snr = snr_db_from_evm_percent(measured_evm_percent);
     let required_snr = snr_db_from_evm_percent(required_evm_percent);

@@ -4,8 +4,8 @@
 //! receiver, then validates SNR, BER, link margin, and throughput against
 //! hand-calculated or reference values.
 
-use linkbudget::*;
 use linkbudget::coding::dvbs2_qpsk_r34;
+use linkbudget::*;
 
 /// Ka-band GEO downlink (20 GHz, 35,786 km).
 /// Typical DTH television link with rain fade margin.
@@ -37,7 +37,11 @@ fn geo_ka_band_downlink() {
 
     // FSPL at 20 GHz, 35786 km ≈ 210.0 dB (verify reasonable range)
     let fspl = budget.path_loss.calculate();
-    assert!(fspl > 205.0 && fspl < 215.0, "FSPL = {:.1} dB out of range", fspl);
+    assert!(
+        fspl > 205.0 && fspl < 215.0,
+        "FSPL = {:.1} dB out of range",
+        fspl
+    );
 
     let snr = budget.snr();
     // GEO Ka-band with modest power — SNR may be marginal
@@ -78,10 +82,18 @@ fn leo_ku_band_uplink() {
     assert!(fspl > 165.0 && fspl < 175.0, "LEO FSPL = {:.1} dB", fspl);
 
     let snr = budget.snr();
-    assert!(snr > 5.0, "LEO uplink should have decent SNR: {:.1} dB", snr);
+    assert!(
+        snr > 5.0,
+        "LEO uplink should have decent SNR: {:.1} dB",
+        snr
+    );
 
     let c_no = budget.c_over_no();
-    assert!(c_no > 70.0, "C/No should be well above 70 dB-Hz: {:.1}", c_no);
+    assert!(
+        c_no > 70.0,
+        "C/No should be well above 70 dB-Hz: {:.1}",
+        c_no
+    );
 }
 
 /// Deep space X-band downlink (8.4 GHz, Mars opposition ~55M km).
@@ -97,9 +109,9 @@ fn deep_space_mars_xband() {
             bandwidth: 4e6,
         },
         receiver: Receiver {
-            gain: 74.0,         // 34m DSN antenna
-            temperature: 25.0,  // cryogenic LNA
-            noise_figure: 0.3,  // dB
+            gain: 74.0,        // 34m DSN antenna
+            temperature: 25.0, // cryogenic LNA
+            noise_figure: 0.3, // dB
             bandwidth: 4e6,
         },
         path_loss: PathLoss {
@@ -111,7 +123,11 @@ fn deep_space_mars_xband() {
 
     // FSPL at interplanetary distances is enormous
     let fspl = budget.path_loss.calculate();
-    assert!(fspl > 260.0, "Deep space FSPL should be >260 dB: {:.1}", fspl);
+    assert!(
+        fspl > 260.0,
+        "Deep space FSPL should be >260 dB: {:.1}",
+        fspl
+    );
 
     // Even with huge path loss, DSN dish should recover the signal
     let snr = budget.snr();
@@ -120,7 +136,11 @@ fn deep_space_mars_xband() {
 
     // G/T of DSN receiver should be excellent
     let g_over_t = budget.receiver.g_over_t_db();
-    assert!(g_over_t > 55.0, "DSN G/T = {:.1} dB/K, expected >55", g_over_t);
+    assert!(
+        g_over_t > 55.0,
+        "DSN G/T = {:.1} dB/K, expected >55",
+        g_over_t
+    );
 }
 
 /// Terrestrial microwave backhaul (6 GHz, 30 km).

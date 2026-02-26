@@ -19,20 +19,29 @@
 
 use crate::modulation::Modulation;
 
-/// Convert SNR (C/N) in dB to C/No in dB·Hz
-/// C/No = SNR_dB + 10·log10(noise_bandwidth_hz)
+/// Convert SNR (C/N) in dB to C/No in dB·Hz.
+///
+/// `C/No = SNR_dB + 10·log10(noise_bandwidth_hz)`
+#[doc(alias = "C/N")]
+#[doc(alias = "SNR")]
+#[must_use]
 pub fn snr_to_c_over_no(snr_db: f64, noise_bandwidth_hz: f64) -> f64 {
     snr_db + 10.0 * noise_bandwidth_hz.log10()
 }
 
-/// Convert C/No in dB·Hz to SNR (C/N) in dB
-/// SNR = C/No - 10·log10(noise_bandwidth_hz)
+/// Convert C/No in dB·Hz to SNR (C/N) in dB.
+///
+/// `SNR = C/No - 10·log10(noise_bandwidth_hz)`
+#[doc(alias = "C/N")]
+#[must_use]
 pub fn c_over_no_to_snr(c_over_no_db_hz: f64, noise_bandwidth_hz: f64) -> f64 {
     c_over_no_db_hz - 10.0 * noise_bandwidth_hz.log10()
 }
 
-/// Convert C/No to Es/No given symbol rate
-/// Es/No = C/No - 10·log10(Rs)
+/// Convert C/No to Es/No given symbol rate.
+///
+/// `Es/No = C/No - 10·log10(Rs)`
+#[must_use]
 pub fn c_over_no_to_es_over_no(c_over_no_db_hz: f64, symbol_rate: f64) -> f64 {
     c_over_no_db_hz - 10.0 * symbol_rate.log10()
 }
@@ -50,42 +59,68 @@ pub fn c_over_no_to_es_over_no(c_over_no_db_hz: f64, symbol_rate: f64) -> f64 {
 ///   Eb/No = C/No / (Rs · k · R) = (C/No) - 10log10(Rs·k·R) [in dB]
 ///   Eb/No = Es/No - 10log10(k·R)
 ///   Eb/No = Es/No - 10log10(k) - 10log10(R)
-pub fn es_over_no_to_eb_over_no(es_over_no_db: f64, modulation: &Modulation, code_rate: f64) -> f64 {
+#[doc(alias = "Eb/N0")]
+#[must_use]
+pub fn es_over_no_to_eb_over_no(
+    es_over_no_db: f64,
+    modulation: &Modulation,
+    code_rate: f64,
+) -> f64 {
     let k = modulation.bits_per_symbol();
     es_over_no_db - 10.0 * k.log10() - 10.0 * code_rate.log10()
 }
 
-/// Convert Eb/No to Es/No
-/// Es/No = Eb/No + 10·log10(k) + 10·log10(R)
-pub fn eb_over_no_to_es_over_no(eb_over_no_db: f64, modulation: &Modulation, code_rate: f64) -> f64 {
+/// Convert Eb/No to Es/No.
+///
+/// `Es/No = Eb/No + 10·log10(k) + 10·log10(R)`
+#[doc(alias = "Eb/N0")]
+#[must_use]
+pub fn eb_over_no_to_es_over_no(
+    eb_over_no_db: f64,
+    modulation: &Modulation,
+    code_rate: f64,
+) -> f64 {
     let k = modulation.bits_per_symbol();
     eb_over_no_db + 10.0 * k.log10() + 10.0 * code_rate.log10()
 }
 
-/// Convert C/No directly to Eb/No given information bit rate
-/// Eb/No = C/No - 10·log10(Rb)
+/// Convert C/No directly to Eb/No given information bit rate.
+///
+/// `Eb/No = C/No - 10·log10(Rb)`
+#[doc(alias = "Eb/N0")]
+#[must_use]
 pub fn c_over_no_to_eb_over_no(c_over_no_db_hz: f64, info_bit_rate_bps: f64) -> f64 {
     c_over_no_db_hz - 10.0 * info_bit_rate_bps.log10()
 }
 
-/// Convert Eb/No to C/No given information bit rate
-/// C/No = Eb/No + 10·log10(Rb)
+/// Convert Eb/No to C/No given information bit rate.
+///
+/// `C/No = Eb/No + 10·log10(Rb)`
+#[doc(alias = "Eb/N0")]
+#[must_use]
 pub fn eb_over_no_to_c_over_no(eb_over_no_db: f64, info_bit_rate_bps: f64) -> f64 {
     eb_over_no_db + 10.0 * info_bit_rate_bps.log10()
 }
 
-/// Es/No to Ec/No: Ec/No = Es/No - 10·log10(k)
+/// Es/No to Ec/No: `Ec/No = Es/No - 10·log10(k)`.
+#[must_use]
 pub fn es_over_no_to_ec_over_no(es_over_no_db: f64, modulation: &Modulation) -> f64 {
     es_over_no_db - 10.0 * modulation.bits_per_symbol().log10()
 }
 
-/// Ec/No to Eb/No: Eb/No = Ec/No - 10·log10(R)
+/// Ec/No to Eb/No: `Eb/No = Ec/No - 10·log10(R)`.
+#[doc(alias = "Eb/N0")]
+#[must_use]
 pub fn ec_over_no_to_eb_over_no(ec_over_no_db: f64, code_rate: f64) -> f64 {
     ec_over_no_db - 10.0 * code_rate.log10()
 }
 
-/// Comprehensive conversion: SNR to Eb/No
-/// Given SNR in a bandwidth, modulation, symbol rate, and code rate
+/// Comprehensive conversion: SNR to Eb/No.
+///
+/// Given SNR in a bandwidth, modulation, symbol rate, and code rate.
+#[doc(alias = "Eb/N0")]
+#[doc(alias = "SNR")]
+#[must_use]
 pub fn snr_to_eb_over_no(
     snr_db: f64,
     noise_bandwidth_hz: f64,
@@ -145,7 +180,10 @@ mod tests {
         let mod_qpsk = Modulation::Qpsk;
         let es_no = 10.0;
         let eb_no = es_over_no_to_eb_over_no(es_no, &mod_qpsk, 0.5);
-        assert!((eb_no - es_no).abs() < 0.01, "For QPSK rate-1/2, Eb/No ≈ Es/No");
+        assert!(
+            (eb_no - es_no).abs() < 0.01,
+            "For QPSK rate-1/2, Eb/No ≈ Es/No"
+        );
     }
 
     #[test]

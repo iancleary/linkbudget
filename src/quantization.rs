@@ -1,10 +1,16 @@
-/// Quantization SNR for an ideal ADC
-/// Returns SNR in dB for a given number of bits
+//! ADC quantization noise and ENOB calculations.
+
+/// Quantization SNR for an ideal ADC.
+///
+/// Returns SNR in dB for a given number of bits.
+#[doc(alias = "SNR")]
+#[must_use]
 pub fn quantization_snr_db(bits: u32) -> f64 {
     6.02 * bits as f64 + 1.76
 }
 
-/// Effective number of bits (ENOB) from measured SNR
+/// Effective number of bits (ENOB) from measured SNR in dB.
+#[must_use]
 pub fn enob_from_snr(snr_db: f64) -> f64 {
     (snr_db - 1.76) / 6.02
 }

@@ -1,22 +1,19 @@
 use std::env;
-use std::fs;
-use std::path::Path;
 use std::process;
 
-// this cannot be crate::Network because of how Cargo works,
-// since cargo/rust treats lib.rs and main.rs as separate crates
 use crate::file_operations;
 use crate::open;
-use crate::plot;
 
 use crate::LinkBudget;
 use crate::PathLoss;
 use crate::Receiver;
 use crate::Transmitter;
 
+/// CLI command runner.
 pub struct Command {}
 
 impl Command {
+    /// Parse CLI arguments and run the link budget tool.
     pub fn run(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
         if args.len() < 2 {
             return Err("not enough arguments".into());
@@ -122,16 +119,19 @@ impl Command {
     }
 }
 
+/// Print the version string.
 pub fn print_version() {
     println!("gainlineup {}", env!("CARGO_PKG_VERSION"));
 }
 
+/// Print a coloured error message to stdout.
 pub fn print_error(error: &str) {
     const RED: &str = "\x1b[31m";
     const RESET: &str = "\x1b[0m";
     println!("{}Problem parsing arguments: {error}{}", RED, RESET);
 }
 
+/// Print usage / help text.
 pub fn print_help() {
     // ANSI color codes
     const BOLD: &str = "\x1b[1m";
@@ -175,9 +175,8 @@ pub fn print_help() {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-
     use super::*;
+    use std::fs;
     use std::path::PathBuf;
 
     fn setup_test_dir(name: &str) -> PathBuf {

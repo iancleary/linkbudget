@@ -1,28 +1,30 @@
+//! Free Space Path Loss (FSPL) calculations.
+//!
+//! If you are modeling orbital mechanics, you may calculate slant range yourself
+//! and pass in the distance here.
+//!
+//! Reference: <https://www.dsprelated.com/showarticle/62.php>
+//!
+//! The often-mentioned "frequency-dependent propagation loss" of radio waves is
+//! really an antenna effect and not a wave propagation effect.
+
 use rfconversions::frequency::frequency_to_wavelength;
 use std::f64::consts::PI;
 
-/// Path Loss (FSPL)
-/// if you are modeling orbital mechanics, you may calculate slant range yourself and pass in the distance here
-///
-/// https://www.dsprelated.com/showarticle/62.php
-/// this is a great article that explains the math behind path loss, and how propagation in free space is not freqeuncy dependent
-/// """
-/// It is apparent from careful study of the Friis Transmission Equation that
-/// the often-mentioned "frequency-dependent propagation loss"
-/// of radio waves is really an antenna effect and not a wave propagation effect.
-/// The propagation of a radio wave or photon through free space is unaffected
-/// by its frequency. Stick antennas, that is, dipole or monopole antennas,
-/// are larger at lower frequencies and therefore have more effective area for energy collection.
-/// Reflective antennas, that is dish antennas, of a given size have higher gain with decreasing wavelength.
-/// Systems that use stick antennas therefore benefit from lower frequencies
-/// while dish-antenna systems will attain higher system gain at higher frequencies.
-/// """
+/// Free Space Path Loss (FSPL) model.
+#[doc(alias = "FSPL")]
+#[doc(alias = "free space path loss")]
 pub struct PathLoss {
+    /// Carrier frequency in Hz.
     pub frequency: f64,
+    /// Distance between transmitter and receiver in metres.
     pub distance: f64,
 }
 
 impl PathLoss {
+    /// Calculate FSPL in dB.
+    #[doc(alias = "FSPL")]
+    #[must_use]
     pub fn calculate(&self) -> f64 {
         let wavelength: f64 = frequency_to_wavelength(self.frequency);
         let distance_wavelength_ratio: f64 = self.distance / wavelength;

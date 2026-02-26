@@ -1,11 +1,16 @@
+//! Power Flux Density (PFD) calculations.
+
 use std::f64::consts::PI;
 
-/// Power Flux Density in dBW/m²
+/// Power Flux Density in dBW/m².
+#[doc(alias = "EIRP")]
+#[must_use]
 pub fn power_flux_density_dbw_per_m2(eirp_dbw: f64, distance_m: f64) -> f64 {
     eirp_dbw - 10.0 * (4.0 * PI * distance_m * distance_m).log10()
 }
 
-/// Power Flux Density in dBW/m²/MHz (for regulatory, spread over bandwidth)
+/// Power Flux Density in dBW/m²/MHz (for regulatory limits, spread over bandwidth).
+#[must_use]
 pub fn pfd_per_mhz(eirp_dbw: f64, distance_m: f64, bandwidth_mhz: f64) -> f64 {
     power_flux_density_dbw_per_m2(eirp_dbw, distance_m) - 10.0 * bandwidth_mhz.log10()
 }
@@ -16,14 +21,13 @@ mod tests {
 
     #[test]
     fn pfd_geostationary() {
-        // GEO satellite: EIRP = 50 dBW, distance ≈ 35,786 km
         let eirp_dbw = 50.0;
         let distance_m = 35_786_000.0;
 
         let pfd = power_flux_density_dbw_per_m2(eirp_dbw, distance_m);
 
-        // PFD = 50 - 10*log10(4*pi*(35786000)^2)
-        let expected = eirp_dbw - 10.0 * (4.0 * std::f64::consts::PI * distance_m * distance_m).log10();
+        let expected =
+            eirp_dbw - 10.0 * (4.0 * std::f64::consts::PI * distance_m * distance_m).log10();
         assert!((pfd - expected).abs() < 1e-10);
     }
 

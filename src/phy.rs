@@ -1,24 +1,32 @@
+//! Shannon-capacity PHY rate calculation.
+
 use core::fmt;
 use std::fmt::{Display, Formatter};
 
+/// Shannon-capacity PHY rate for a given bandwidth and SNR.
 pub struct PhyRate {
-    pub bandwidth: f64, // Hz
-    pub snr: f64,       // linear
+    /// Channel bandwidth in Hz.
+    pub bandwidth: f64,
+    /// Signal-to-noise ratio (linear, not dB).
+    pub snr: f64,
 }
 
 impl PhyRate {
+    /// PHY rate in bits per second (Shannon capacity).
+    #[must_use]
     pub fn bps(&self) -> f64 {
-        // PHY Rate in bps
         self.bandwidth * (1.0 + self.snr).log2()
     }
 
+    /// PHY rate in megabits per second.
+    #[must_use]
     pub fn mbps(&self) -> f64 {
-        // PHY Rate in Mbps
         self.bps() / 1_000_000.0
     }
 
+    /// PHY rate in gigabits per second.
+    #[must_use]
     pub fn gbps(&self) -> f64 {
-        // PHY Rate in Gbps
         self.bps() / 1_000_000_000.0
     }
 }

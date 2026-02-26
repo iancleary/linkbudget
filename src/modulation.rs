@@ -19,7 +19,8 @@ pub enum Modulation {
 }
 
 impl Modulation {
-    /// Modulation order M
+    /// Modulation order M.
+    #[must_use]
     pub fn order(&self) -> u32 {
         match self {
             Modulation::Bpsk => 2,
@@ -30,26 +31,33 @@ impl Modulation {
         }
     }
 
-    /// Bits per symbol: k = log2(M)
+    /// Bits per symbol: k = log2(M).
+    #[must_use]
     pub fn bits_per_symbol(&self) -> f64 {
         (self.order() as f64).log2()
     }
 
-    /// Symbol rate from information bit rate and code rate
-    /// Rs = Rb / (k * R) where R is FEC code rate
+    /// Symbol rate from information bit rate and code rate.
+    ///
+    /// `Rs = Rb / (k * R)` where R is FEC code rate.
+    #[must_use]
     pub fn symbol_rate(&self, info_bit_rate_bps: f64, code_rate: f64) -> f64 {
         let coded_bit_rate = info_bit_rate_bps / code_rate;
         coded_bit_rate / self.bits_per_symbol()
     }
 
-    /// Occupied bandwidth from symbol rate and roll-off factor (alpha)
-    /// BW = Rs * (1 + alpha) for raised-cosine pulse shaping
+    /// Occupied bandwidth from symbol rate and roll-off factor (alpha).
+    ///
+    /// `BW = Rs * (1 + alpha)` for raised-cosine pulse shaping.
+    #[must_use]
     pub fn occupied_bandwidth(&self, symbol_rate: f64, rolloff: f64) -> f64 {
         symbol_rate * (1.0 + rolloff)
     }
 
-    /// Null-to-null bandwidth (no pulse shaping)
-    /// For most schemes this is 2 * Rs; for MSK it's 1.5 * Rs
+    /// Null-to-null bandwidth (no pulse shaping).
+    ///
+    /// For most schemes this is 2 × Rs; for MSK it's 1.5 × Rs.
+    #[must_use]
     pub fn null_bandwidth(&self, symbol_rate: f64) -> f64 {
         match self {
             Modulation::Msk => 1.5 * symbol_rate,
@@ -57,8 +65,10 @@ impl Modulation {
         }
     }
 
-    /// Spectral efficiency in bits/s/Hz (ideal, no roll-off)
-    /// eta = k * R
+    /// Spectral efficiency in bits/s/Hz (ideal, no roll-off).
+    ///
+    /// `eta = k * R`
+    #[must_use]
     pub fn spectral_efficiency(&self, code_rate: f64) -> f64 {
         self.bits_per_symbol() * code_rate
     }

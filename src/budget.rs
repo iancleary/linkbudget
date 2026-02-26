@@ -1,3 +1,5 @@
+//! End-to-end link budget calculation.
+
 use crate::ber;
 use crate::coding::CodedModulation;
 use crate::energy;
@@ -7,23 +9,28 @@ use crate::phy::PhyRate;
 use crate::receiver::Receiver;
 use crate::transmitter::Transmitter;
 
-// elevation_angle and altitude could be moved to a struct
-// also could come from the position of the transmitter and receiver
-// and the radius of the body (lat/long/alt of the transmitter and receiver)
-
+/// A complete link budget from transmitter through path to receiver.
+#[doc(alias = "link margin")]
 pub struct LinkBudget {
+    /// Human-readable name for this link.
     pub name: &'static str,
-    pub bandwidth: f64,           // in Hz
-    pub transmitter: Transmitter, // you should include any pointing loss, etc. here
-    pub receiver: Receiver,       // you should include any pointing loss, etc. here
-    pub path_loss: PathLoss,      // you may calculate this yourself for various situations
-    // the frequency dependence is really an antenna effect (for free space)
-    pub frequency_dependent_loss: Option<f64>, // optional fade margin, such as rain fade, obstacles, etc.
-                                               // this is the part that generally has a frequency dependence
-                                               // rain fade, obstacle penetration, atmospheric absorption, etc.
+    /// Channel bandwidth in Hz.
+    pub bandwidth: f64,
+    /// Transmitter (include any pointing loss in the gain).
+    pub transmitter: Transmitter,
+    /// Receiver (include any pointing loss in the gain).
+    pub receiver: Receiver,
+    /// Free-space path loss model (you may calculate distance yourself).
+    pub path_loss: PathLoss,
+    /// Optional frequency-dependent loss (rain fade, atmospheric absorption, etc.) in dB.
+    #[doc(alias = "rain fade")]
+    pub frequency_dependent_loss: Option<f64>,
 }
 
 impl LinkBudget {
+    /// Total path loss in dB, including any frequency-dependent loss.
+    #[doc(alias = "FSPL")]
+    #[must_use]
     pub fn path_loss(&self) -> f64 {
         let path_loss_in_db: f64 = self.path_loss.calculate();
 
@@ -35,23 +42,30 @@ impl LinkBudget {
         total_path_loss_in_db
     }
 
+    /// Received power at the receiver input in dBm.
+    #[must_use]
     pub fn pin_at_receiver(&self) -> f64 {
         let path_loss_in_db = self.path_loss();
 
-        // Assumes receiver input power is spread across the bandwidth
-        // pin_at_receiver =
         self.transmitter.output_power + self.transmitter.gain - path_loss_in_db + self.receiver.gain
     }
+
+    /// SNR at the receiver in dB.
+    #[doc(alias = "SNR")]
+    #[must_use]
     pub fn snr(&self) -> f64 {
-        // returns value in dB
         self.receiver.calculate_snr(self.pin_at_receiver())
     }
 
+    /// SNR at the receiver (linear, not dB).
+    #[doc(alias = "SNR")]
+    #[must_use]
     pub fn snr_linear(&self) -> f64 {
-        // returns linear value (not dB)
         10.0_f64.powf(self.snr() / 10.0)
     }
 
+    /// Shannon-capacity PHY rate for this link.
+    #[must_use]
     pub fn phy_rate(&self) -> PhyRate {
         PhyRate {
             bandwidth: self.bandwidth,
@@ -59,48 +73,44 @@ impl LinkBudget {
         }
     }
 
-    // ----- Modulation-aware methods (Phase 5 of issue #12) -----
+    // ----- Modulation-aware methods -----
 
     /// C/No in dB·Hz from the link budget SNR and noise bandwidth.
     ///
-    /// C/No = SNR(dB) + 10·log10(noise_bandwidth)
-    ///
-    /// Uses the receiver bandwidth as the noise bandwidth.
+    /// `C/No = SNR(dB) + 10·log10(noise_bandwidth)`
+    #[doc(alias = "C/N")]
+    #[must_use]
     pub fn c_over_no(&self) -> f64 {
         energy::snr_to_c_over_no(self.snr(), self.receiver.bandwidth)
     }
 
     /// Eb/No in dB for a given modulation scheme (uncoded).
-    ///
-    /// Converts the link SNR to Eb/No using the modulation's spectral efficiency:
-    /// ```text
-    /// Eb/No = SNR - 10·log10(spectral_efficiency)
-    /// ```
-    ///
-    /// For coded systems, use [`Self::eb_no_coded_db`] instead.
+    #[doc(alias = "Eb/N0")]
+    #[must_use]
     pub fn eb_no_db(&self, modulation: &Modulation) -> f64 {
-        let eta = modulation.bits_per_symbol(); // uncoded spectral efficiency
+        let eta = modulation.bits_per_symbol();
         self.snr() - 10.0 * eta.log10()
     }
 
     /// Eb/No in dB for a coded modulation scheme.
-    ///
-    /// Accounts for the code rate's effect on spectral efficiency:
-    /// ```text
-    /// Eb/No = SNR - 10·log10(k * R)
-    /// ```
+    #[doc(alias = "Eb/N0")]
+    #[must_use]
     pub fn eb_no_coded_db(&self, coded_mod: &CodedModulation) -> f64 {
         let eta = coded_mod.spectral_efficiency();
         self.snr() - 10.0 * eta.log10()
     }
 
     /// BER for a given modulation at the link's Eb/No (uncoded).
+    #[doc(alias = "BER")]
+    #[must_use]
     pub fn ber(&self, modulation: &Modulation) -> f64 {
         let eb_no_db = self.eb_no_db(modulation);
         ber::ber_from_db(eb_no_db, modulation)
     }
 
     /// BER for a coded modulation scheme at the link's Eb/No.
+    #[doc(alias = "BER")]
+    #[must_use]
     pub fn ber_coded(&self, coded_mod: &CodedModulation) -> f64 {
         let eb_no_db = self.eb_no_coded_db(coded_mod);
         coded_mod.ber_from_db(eb_no_db)
@@ -110,6 +120,8 @@ impl LinkBudget {
     ///
     /// Positive margin = link closes with headroom.
     /// Negative margin = link does not close.
+    #[doc(alias = "link margin")]
+    #[must_use]
     pub fn link_margin_db(&self, modulation: &Modulation, target_ber: f64) -> Option<f64> {
         let actual = self.eb_no_db(modulation);
         let required = ber::required_eb_no_db(target_ber, modulation)?;
@@ -117,6 +129,8 @@ impl LinkBudget {
     }
 
     /// Link margin in dB for a coded modulation and target BER.
+    #[doc(alias = "link margin")]
+    #[must_use]
     pub fn link_margin_coded_db(
         &self,
         coded_mod: &CodedModulation,
@@ -127,6 +141,7 @@ impl LinkBudget {
     }
 
     /// Achievable throughput in bits/s for a coded modulation scheme.
+    #[must_use]
     pub fn throughput_bps(&self, coded_mod: &CodedModulation) -> f64 {
         coded_mod.throughput_bps(self.bandwidth)
     }
@@ -164,7 +179,6 @@ mod budget_tests {
     fn c_over_no_positive() {
         let b = sample_budget();
         let c_no = b.c_over_no();
-        // Should be SNR + 10*log10(36e6) ≈ SNR + 75.56
         let expected = b.snr() + 10.0 * 36e6_f64.log10();
         assert!((c_no - expected).abs() < 0.01);
     }
@@ -173,7 +187,6 @@ mod budget_tests {
     fn eb_no_less_than_snr_for_qpsk() {
         let b = sample_budget();
         let eb_no = b.eb_no_db(&Modulation::Qpsk);
-        // QPSK: k=2, so Eb/No = SNR - 10*log10(2) ≈ SNR - 3.01
         let expected = b.snr() - 10.0 * 2.0_f64.log10();
         assert!((eb_no - expected).abs() < 0.01);
     }
@@ -190,7 +203,6 @@ mod budget_tests {
         let b = sample_budget();
         let margin = b.link_margin_db(&Modulation::Qpsk, 1e-5);
         assert!(margin.is_some());
-        // Just check it returns a reasonable number
         let m = margin.unwrap();
         assert!(m > -50.0 && m < 100.0);
     }
@@ -203,10 +215,12 @@ mod budget_tests {
         let coded = dvbs2_qpsk_r34();
         let coded_margin = b.link_margin_coded_db(&coded, 1e-5).unwrap();
 
-        // Coded margin should be better (more headroom) due to coding gain
-        assert!(coded_margin > uncoded_margin,
+        assert!(
+            coded_margin > uncoded_margin,
             "Coded margin ({:.1} dB) should exceed uncoded ({:.1} dB)",
-            coded_margin, uncoded_margin);
+            coded_margin,
+            uncoded_margin
+        );
     }
 
     #[test]
@@ -214,7 +228,6 @@ mod budget_tests {
         let b = sample_budget();
         let cm = dvbs2_qpsk_r34();
         let tp = b.throughput_bps(&cm);
-        // QPSK R=3/4: η = 2 × 0.75 = 1.5, throughput = 36e6 × 1.5 = 54 Mbps
         assert!((tp - 54e6).abs() < 1.0);
     }
 
@@ -226,8 +239,11 @@ mod budget_tests {
         let coded = dvbs2_qpsk_r34();
         let ber_coded = b.ber_coded(&coded);
 
-        assert!(ber_coded < ber_uncoded,
+        assert!(
+            ber_coded < ber_uncoded,
             "Coded BER ({:.2e}) should be lower than uncoded ({:.2e})",
-            ber_coded, ber_uncoded);
+            ber_coded,
+            ber_uncoded
+        );
     }
 }

@@ -1,14 +1,24 @@
+//! Receiver model for link budget calculations.
+
 use rfconversions::noise::noise_power_from_bandwidth;
 use rfconversions::power::watts_to_dbm;
 
+/// A radio receiver with gain, system temperature, noise figure, and bandwidth.
+#[doc(alias = "G/T")]
 pub struct Receiver {
-    pub gain: f64,         // dB
-    pub temperature: f64,  // K
-    pub noise_figure: f64, // dB
-    pub bandwidth: f64,    // Hz
+    /// Antenna gain in dB.
+    pub gain: f64,
+    /// System noise temperature in Kelvin.
+    pub temperature: f64,
+    /// Noise figure in dB.
+    pub noise_figure: f64,
+    /// Noise bandwidth in Hz.
+    pub bandwidth: f64,
 }
 
 impl Receiver {
+    /// Thermal noise floor in dBm (before noise figure).
+    #[must_use]
     pub fn calculate_noise_floor(&self) -> f64 {
         let receiver_noise_floor_power =
             noise_power_from_bandwidth(self.temperature, self.bandwidth);
@@ -16,15 +26,23 @@ impl Receiver {
         watts_to_dbm(receiver_noise_floor_power)
     }
 
+    /// Total noise power in dBm (noise floor + noise figure).
+    #[must_use]
     pub fn calculate_noise_power(&self) -> f64 {
         self.calculate_noise_floor() + self.noise_figure
     }
 
+    /// G/T (gain-to-noise-temperature ratio) in dB/K.
+    #[doc(alias = "G/T")]
+    #[must_use]
     pub fn g_over_t_db(&self) -> f64 {
         // G/T in dB/K
         self.gain - 10.0 * self.temperature.log10()
     }
 
+    /// Signal-to-noise ratio in dB for a given input power (dBm).
+    #[doc(alias = "SNR")]
+    #[must_use]
     pub fn calculate_snr(&self, input_power: f64) -> f64 {
         let receiver_noise_floor_dbm = self.calculate_noise_floor();
 

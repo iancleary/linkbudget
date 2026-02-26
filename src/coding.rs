@@ -68,17 +68,32 @@ pub enum FecCode {
     /// No FEC (uncoded)
     Uncoded,
     /// Convolutional code, constraint length K=7
-    Convolutional { rate: f64 },
+    Convolutional {
+        /// Code rate (e.g. 0.5 for rate-1/2).
+        rate: f64,
+    },
     /// Turbo code
-    Turbo { rate: f64 },
+    Turbo {
+        /// Code rate.
+        rate: f64,
+    },
     /// LDPC code (e.g. DVB-S2)
-    Ldpc { rate: f64 },
+    Ldpc {
+        /// Code rate.
+        rate: f64,
+    },
     /// Custom FEC with explicit code rate and coding gain
-    Custom { rate: f64, coding_gain_db: f64 },
+    Custom {
+        /// Code rate.
+        rate: f64,
+        /// Coding gain in dB relative to uncoded.
+        coding_gain_db: f64,
+    },
 }
 
 impl FecCode {
-    /// Code rate R (ratio of information bits to total bits)
+    /// Code rate R (ratio of information bits to total bits).
+    #[must_use]
     pub fn rate(&self) -> f64 {
         match self {
             FecCode::Uncoded => 1.0,
@@ -93,28 +108,63 @@ impl FecCode {
     ///
     /// For convolutional, turbo, and LDPC codes, the gain is interpolated
     /// between known rate/gain pairs. For custom codes, the explicit gain is used.
+    #[must_use]
     pub fn coding_gain_db(&self) -> f64 {
         match self {
             FecCode::Uncoded => 0.0,
             FecCode::Convolutional { rate } => {
                 // Interpolate between rate 1/2 (5.0 dB) and rate 3/4 (3.5 dB)
-                lerp_gain(*rate, 0.5, CODING_GAIN_CONV_R12_K7, 0.75, CODING_GAIN_CONV_R34_K7)
+                lerp_gain(
+                    *rate,
+                    0.5,
+                    CODING_GAIN_CONV_R12_K7,
+                    0.75,
+                    CODING_GAIN_CONV_R34_K7,
+                )
             }
-            FecCode::Turbo { rate } => {
-                lerp_gain(*rate, 0.5, CODING_GAIN_TURBO_R12, 0.75, CODING_GAIN_TURBO_R34)
-            }
+            FecCode::Turbo { rate } => lerp_gain(
+                *rate,
+                0.5,
+                CODING_GAIN_TURBO_R12,
+                0.75,
+                CODING_GAIN_TURBO_R34,
+            ),
             FecCode::Ldpc { rate } => {
                 // Piecewise interpolation across DVB-S2 rate points
                 if *rate <= 0.5 {
                     CODING_GAIN_LDPC_R12
                 } else if *rate <= 2.0 / 3.0 {
-                    lerp_gain(*rate, 0.5, CODING_GAIN_LDPC_R12, 2.0 / 3.0, CODING_GAIN_LDPC_R23)
+                    lerp_gain(
+                        *rate,
+                        0.5,
+                        CODING_GAIN_LDPC_R12,
+                        2.0 / 3.0,
+                        CODING_GAIN_LDPC_R23,
+                    )
                 } else if *rate <= 0.75 {
-                    lerp_gain(*rate, 2.0 / 3.0, CODING_GAIN_LDPC_R23, 0.75, CODING_GAIN_LDPC_R34)
+                    lerp_gain(
+                        *rate,
+                        2.0 / 3.0,
+                        CODING_GAIN_LDPC_R23,
+                        0.75,
+                        CODING_GAIN_LDPC_R34,
+                    )
                 } else if *rate <= 5.0 / 6.0 {
-                    lerp_gain(*rate, 0.75, CODING_GAIN_LDPC_R34, 5.0 / 6.0, CODING_GAIN_LDPC_R56)
+                    lerp_gain(
+                        *rate,
+                        0.75,
+                        CODING_GAIN_LDPC_R34,
+                        5.0 / 6.0,
+                        CODING_GAIN_LDPC_R56,
+                    )
                 } else {
-                    lerp_gain(*rate, 5.0 / 6.0, CODING_GAIN_LDPC_R56, 0.9, CODING_GAIN_LDPC_R910)
+                    lerp_gain(
+                        *rate,
+                        5.0 / 6.0,
+                        CODING_GAIN_LDPC_R56,
+                        0.9,
+                        CODING_GAIN_LDPC_R910,
+                    )
                 }
             }
             FecCode::Custom { coding_gain_db, .. } => *coding_gain_db,
@@ -139,7 +189,10 @@ impl std::fmt::Display for FecCode {
             FecCode::Convolutional { rate } => write!(f, "Convolutional (R={})", rate),
             FecCode::Turbo { rate } => write!(f, "Turbo (R={})", rate),
             FecCode::Ldpc { rate } => write!(f, "LDPC (R={})", rate),
-            FecCode::Custom { rate, coding_gain_db } => {
+            FecCode::Custom {
+                rate,
+                coding_gain_db,
+            } => {
                 write!(f, "Custom (R={}, gain={} dB)", rate, coding_gain_db)
             }
         }
@@ -156,33 +209,39 @@ impl std::fmt::Display for FecCode {
 /// practical system throughput.
 #[derive(Debug, Clone)]
 pub struct CodedModulation {
+    /// The modulation scheme (BPSK, QPSK, 8PSK, etc.).
     pub modulation: Modulation,
+    /// The forward error correction code.
     pub fec: FecCode,
 }
 
 impl CodedModulation {
+    /// Create a new coded modulation scheme.
+    #[must_use]
     pub fn new(modulation: Modulation, fec: FecCode) -> Self {
         Self { modulation, fec }
     }
 
-    /// Code rate R
+    /// Code rate R.
+    #[must_use]
     pub fn code_rate(&self) -> f64 {
         self.fec.rate()
     }
 
-    /// Coding gain in dB
+    /// Coding gain in dB.
+    #[must_use]
     pub fn coding_gain_db(&self) -> f64 {
         self.fec.coding_gain_db()
     }
 
-    /// Spectral efficiency in bits/s/Hz
-    /// η = k × R where k = bits_per_symbol
+    /// Spectral efficiency in bits/s/Hz (`η = k × R`).
+    #[must_use]
     pub fn spectral_efficiency(&self) -> f64 {
         self.modulation.spectral_efficiency(self.fec.rate())
     }
 
-    /// Throughput in bits/s for a given channel bandwidth
-    /// throughput = BW × η = BW × k × R
+    /// Throughput in bits/s for a given channel bandwidth.
+    #[must_use]
     pub fn throughput_bps(&self, bandwidth_hz: f64) -> f64 {
         bandwidth_hz * self.spectral_efficiency()
     }
@@ -192,6 +251,8 @@ impl CodedModulation {
     /// ```text
     /// required_Eb/No = uncoded_required - coding_gain
     /// ```
+    #[doc(alias = "Eb/N0")]
+    #[must_use]
     pub fn required_eb_no_db(&self, target_ber: f64) -> Option<f64> {
         let uncoded = ber::required_eb_no_db(target_ber, &self.modulation)?;
         Some(uncoded - self.fec.coding_gain_db())
@@ -200,6 +261,8 @@ impl CodedModulation {
     /// BER for a given Eb/No (dB), accounting for coding gain.
     ///
     /// The effective Eb/No seen by the decoder is increased by the coding gain.
+    #[doc(alias = "BER")]
+    #[must_use]
     pub fn ber_from_db(&self, eb_no_db: f64) -> f64 {
         let effective_eb_no_db = eb_no_db + self.fec.coding_gain_db();
         ber::ber_from_db(effective_eb_no_db, &self.modulation)
@@ -209,14 +272,18 @@ impl CodedModulation {
     ///
     /// Positive margin means the link closes with headroom.
     /// Negative margin means the link does not close.
+    #[doc(alias = "link margin")]
+    #[must_use]
     pub fn link_margin_db(&self, actual_eb_no_db: f64, target_ber: f64) -> Option<f64> {
         let required = self.required_eb_no_db(target_ber)?;
         Some(actual_eb_no_db - required)
     }
 
-    /// Symbol rate for a given information bit rate
+    /// Symbol rate for a given information bit rate.
+    #[must_use]
     pub fn symbol_rate(&self, info_bit_rate_bps: f64) -> f64 {
-        self.modulation.symbol_rate(info_bit_rate_bps, self.fec.rate())
+        self.modulation
+            .symbol_rate(info_bit_rate_bps, self.fec.rate())
     }
 }
 
@@ -230,27 +297,32 @@ impl std::fmt::Display for CodedModulation {
 // Convenience constructors for common DVB-S2 ModCods
 // ---------------------------------------------------------------------------
 
-/// DVB-S2 QPSK rate 1/2 (LDPC)
+/// DVB-S2 QPSK rate 1/2 (LDPC).
+#[must_use]
 pub fn dvbs2_qpsk_r12() -> CodedModulation {
     CodedModulation::new(Modulation::Qpsk, FecCode::Ldpc { rate: 0.5 })
 }
 
-/// DVB-S2 QPSK rate 3/4 (LDPC)
+/// DVB-S2 QPSK rate 3/4 (LDPC).
+#[must_use]
 pub fn dvbs2_qpsk_r34() -> CodedModulation {
     CodedModulation::new(Modulation::Qpsk, FecCode::Ldpc { rate: 0.75 })
 }
 
-/// DVB-S2 8-PSK rate 2/3 (LDPC)
+/// DVB-S2 8-PSK rate 2/3 (LDPC).
+#[must_use]
 pub fn dvbs2_8psk_r23() -> CodedModulation {
     CodedModulation::new(Modulation::Mpsk(8), FecCode::Ldpc { rate: 2.0 / 3.0 })
 }
 
-/// DVB-S2 16-APSK rate 3/4 (LDPC) — modeled as 16-QAM for BER approximation
+/// DVB-S2 16-APSK rate 3/4 (LDPC) — modeled as 16-QAM for BER approximation.
+#[must_use]
 pub fn dvbs2_16apsk_r34() -> CodedModulation {
     CodedModulation::new(Modulation::Mqam(16), FecCode::Ldpc { rate: 0.75 })
 }
 
-/// DVB-S2 32-APSK rate 5/6 (LDPC) — modeled as 32-QAM for BER approximation
+/// DVB-S2 32-APSK rate 5/6 (LDPC) — modeled as 32-QAM for BER approximation.
+#[must_use]
 pub fn dvbs2_32apsk_r56() -> CodedModulation {
     CodedModulation::new(Modulation::Mqam(32), FecCode::Ldpc { rate: 5.0 / 6.0 })
 }
@@ -307,13 +379,19 @@ mod tests {
         // Rate 0.625 (between 1/2 and 2/3) should interpolate
         let fec = FecCode::Ldpc { rate: 0.625 };
         let gain = fec.coding_gain_db();
-        assert!(gain > 7.0 && gain < 8.0,
-            "Expected interpolated gain between 7.0 and 8.0, got {}", gain);
+        assert!(
+            gain > 7.0 && gain < 8.0,
+            "Expected interpolated gain between 7.0 and 8.0, got {}",
+            gain
+        );
     }
 
     #[test]
     fn custom_fec() {
-        let fec = FecCode::Custom { rate: 0.8, coding_gain_db: 6.0 };
+        let fec = FecCode::Custom {
+            rate: 0.8,
+            coding_gain_db: 6.0,
+        };
         assert_eq!(fec.rate(), 0.8);
         assert_eq!(fec.coding_gain_db(), 6.0);
     }
@@ -341,11 +419,18 @@ mod tests {
         let req_uncoded = uncoded.required_eb_no_db(1e-5).unwrap();
         let req_coded = coded.required_eb_no_db(1e-5).unwrap();
 
-        assert!(req_coded < req_uncoded,
-            "Coded should require less Eb/No: coded={:.1}, uncoded={:.1}", req_coded, req_uncoded);
+        assert!(
+            req_coded < req_uncoded,
+            "Coded should require less Eb/No: coded={:.1}, uncoded={:.1}",
+            req_coded,
+            req_uncoded
+        );
         let diff = req_uncoded - req_coded;
-        assert!((diff - 8.0).abs() < 0.5,
-            "LDPC R=1/2 coding gain should be ~8 dB, got {:.1} dB", diff);
+        assert!(
+            (diff - 8.0).abs() < 0.5,
+            "LDPC R=1/2 coding gain should be ~8 dB, got {:.1} dB",
+            diff
+        );
     }
 
     #[test]
@@ -357,28 +442,41 @@ mod tests {
         let ber_uncoded = uncoded.ber_from_db(eb_no);
         let ber_coded = coded.ber_from_db(eb_no);
 
-        assert!(ber_coded < ber_uncoded,
-            "Coded BER should be lower: coded={:.2e}, uncoded={:.2e}", ber_coded, ber_uncoded);
+        assert!(
+            ber_coded < ber_uncoded,
+            "Coded BER should be lower: coded={:.2e}, uncoded={:.2e}",
+            ber_coded,
+            ber_uncoded
+        );
     }
 
     #[test]
     fn link_margin_positive() {
         let cm = dvbs2_qpsk_r34();
         let margin = cm.link_margin_db(10.0, 1e-5).unwrap();
-        assert!(margin > 0.0, "10 dB Eb/No should close with QPSK R=3/4 at BER=1e-5");
+        assert!(
+            margin > 0.0,
+            "10 dB Eb/No should close with QPSK R=3/4 at BER=1e-5"
+        );
     }
 
     #[test]
     fn link_margin_negative() {
         let cm = CodedModulation::new(Modulation::Mqam(64), FecCode::Uncoded);
         let margin = cm.link_margin_db(5.0, 1e-6).unwrap();
-        assert!(margin < 0.0, "5 dB Eb/No should NOT close for uncoded 64-QAM at BER=1e-6");
+        assert!(
+            margin < 0.0,
+            "5 dB Eb/No should NOT close for uncoded 64-QAM at BER=1e-6"
+        );
     }
 
     #[test]
     fn dvbs2_presets_display() {
         assert_eq!(format!("{}", dvbs2_qpsk_r12()), "QPSK + LDPC (R=0.5)");
-        assert_eq!(format!("{}", dvbs2_8psk_r23()), "8-PSK + LDPC (R=0.6666666666666666)");
+        assert_eq!(
+            format!("{}", dvbs2_8psk_r23()),
+            "8-PSK + LDPC (R=0.6666666666666666)"
+        );
     }
 
     #[test]
