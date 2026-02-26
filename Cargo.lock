@@ -4,13 +4,13 @@ version = 4
 
 [[package]]
 name = "linkbudget"
-version = "0.5.2"
+version = "0.5.3"
 dependencies = [
  "rfconversions",
 ]
 
 [[package]]
 name = "rfconversions"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "360d2e51a74ba62e9ae05960bf4af0f2d968adfab9d4f5217da8c3d97dd3992a"
+checksum = "69516f3a14063db1538c3694768b4091b627a4474ba066565e4de00ea8292aad"
