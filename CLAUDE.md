@@ -2,12 +2,12 @@
 
 ## Overview
 
-Rust crate for RF link budget analysis. Covers the full TX → path loss → RX → SNR → Eb/No → BER → margin chain for satellite and terrestrial communication systems. Published on crates.io (v0.5.0).
+Rust crate for RF link budget analysis. Covers the full TX → path loss → RX → SNR → Eb/No → BER → margin chain for satellite and terrestrial communication systems. Published on crates.io (v0.5.3).
 
 ## Commands
 
 ```bash
-cargo test                        # Run all 137 tests
+cargo test                        # Run all 127 tests
 cargo clippy -- -D warnings       # Lint
 cargo fmt -- --check              # Format check
 cargo run                         # Run built-in CLI example
@@ -35,6 +35,8 @@ cargo doc --open                  # Generate and view API docs
 | `quantization` | `src/quantization.rs` | ADC/DAC quantization SNR and ENOB |
 | `constants` | `src/constants.rs` | Physical constants |
 | `cli` | `src/cli.rs` | CLI entry point |
+| `file_operations` | `src/file_operations.rs` | File I/O utilities |
+| `open` | `src/open.rs` | Cross-platform file/URL opening |
 | `plot` | `src/plot.rs` | HTML plot generation |
 
 ## Where to Look
