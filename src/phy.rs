@@ -57,4 +57,57 @@ mod tests {
         assert_eq!(phy_rate.mbps(), 80.0);
         assert_eq!(phy_rate.gbps(), 0.08);
     }
+
+    #[test]
+    fn zero_snr_gives_zero_capacity() {
+        let phy = PhyRate {
+            bandwidth: 1_000_000.0,
+            snr: 0.0,
+        };
+        assert_eq!(phy.bps(), 0.0);
+    }
+
+    #[test]
+    fn snr_1_gives_bandwidth() {
+        // SNR=1 (0 dB) → C = BW * log2(2) = BW
+        let bw = 10_000_000.0;
+        let phy = PhyRate {
+            bandwidth: bw,
+            snr: 1.0,
+        };
+        assert!((phy.bps() - bw).abs() < 1e-6);
+    }
+
+    #[test]
+    fn high_snr_satellite() {
+        // Ka-band satellite: 500 MHz BW, 20 dB SNR (100 linear)
+        let phy = PhyRate {
+            bandwidth: 500_000_000.0,
+            snr: 100.0,
+        };
+        // log2(101) ≈ 6.658 → ~3.33 Gbps
+        assert!((phy.gbps() - 3.329).abs() < 0.01);
+    }
+
+    #[test]
+    fn display_format() {
+        let phy = PhyRate {
+            bandwidth: 20_000_000.0,
+            snr: 15.0,
+        };
+        let s = format!("{phy}");
+        assert!(s.contains("20000000"));
+        assert!(s.contains("15"));
+        assert!(s.contains("80"));
+    }
+
+    #[test]
+    fn mbps_gbps_consistency() {
+        let phy = PhyRate {
+            bandwidth: 1_000_000_000.0,
+            snr: 3.0,
+        };
+        assert!((phy.mbps() - phy.gbps() * 1000.0).abs() < 1e-6);
+        assert!((phy.bps() - phy.mbps() * 1_000_000.0).abs() < 1e-3);
+    }
 }
