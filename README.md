@@ -245,6 +245,23 @@ println!("ENOB at 65 dB: {:.1} bits", enob_from_snr(65.0)); // 10.5
 linkbudget          # runs the built-in example
 ```
 
+### Diagnostics (Tracing)
+
+`linkbudget` uses [`tracing`](https://docs.rs/tracing) for structured, runtime-controllable diagnostics. Set the `RUST_LOG` environment variable to see what the CLI is doing:
+
+```bash
+# See HTML generation and browser launch info
+RUST_LOG=linkbudget=info linkbudget config.toml
+
+# See path resolution, file URL construction, and all diagnostics
+RUST_LOG=linkbudget=debug linkbudget config.toml
+
+# Only warnings and errors (quiet mode)
+RUST_LOG=linkbudget=warn linkbudget config.toml
+```
+
+If you use `linkbudget` as a library, install any `tracing` subscriber in your application to capture events. Without a subscriber, all tracing calls are zero-cost no-ops.
+
 ## References
 
 - [Path Loss, Antenna Gain, and Frequency Dependence — Eric Jacobsen](https://www.dsprelated.com/showarticle/62.php)

@@ -49,9 +49,9 @@ impl Command {
         // cargo run arg[1], such as cargo run tests/simple_config.toml
         // gainlineup arg[1], such as gainlineup tests/simple_config.toml
         let file_path = args[1].clone();
-        println!("Config Path: {}", file_path);
+        tracing::debug!("Config path: {}", file_path);
         let full_path = cwd.join(&file_path);
-        println!("Full Path: {}", full_path.display());
+        tracing::debug!("Full path: {}", full_path.display());
 
         let file_path_config: file_operations::FilePathConfig =
             file_operations::get_file_path_config(&full_path.display().to_string());
@@ -81,7 +81,7 @@ impl Command {
                 );
             };
 
-        println!("Generating HTML table at: {}", output_html_path);
+        tracing::info!("Generating HTML table at: {}", output_html_path);
 
         let output_html_path_str = output_html_path.as_str();
 
@@ -155,7 +155,6 @@ pub fn print_help() {
     println!();
     println!("     The toml file is parsed and an interactive plot (html file and js/ folder) ");
     println!("     is created next to the source file(s).");
-    // println!("     ");
     println!();
     println!("{}{}OPTIONS:{}", BOLD, YELLOW, RESET);
     println!(
