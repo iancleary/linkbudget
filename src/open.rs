@@ -23,8 +23,8 @@ pub fn browser(url: &str) {
     // .spawn() creates the child process and returns immediately.
     // We do NOT use .output() because that would wait for the browser to close.
     match process::Command::new(cmd).args(&args).spawn() {
-        Ok(_) => println!("Success! Opening: {}", url),
-        Err(e) => eprintln!("Failed to open {} in your default browser: {}", url, e),
+        Ok(_) => tracing::info!("Opening in browser: {}", url),
+        Err(e) => tracing::error!("Failed to open {} in default browser: {}", url, e),
     }
 }
 
@@ -36,16 +36,13 @@ pub fn plot(file_path: String) {
     // which most modern browsers can handle, but strictly speaking is invalid URI syntax.
     let html_file_url = file_operations::get_file_url(&file_path);
 
-    println!(
-        "You can open the plot in your browser at:\n{}",
-        html_file_url
-    );
+    tracing::info!("Plot available at: {}", html_file_url);
 
     // if not part of cargo test, open the created file
     if cfg!(test) {
         // pass
     } else {
-        println!("Attempting to open plot in your default browser...");
+        tracing::debug!("Attempting to open plot in default browser...");
         // 2. Use the open crate to launch the file, if not testing
         browser(&html_file_url);
     }

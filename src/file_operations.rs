@@ -52,16 +52,13 @@ pub fn get_file_path_config(path_str: &str) -> FilePathConfig {
     }
 
     if unix_absolute_path {
-        println!("'{}' is a Unix Absolute path.", path_str);
+        tracing::debug!("Unix absolute path: {}", path_str);
     } else if windows_absolute_path {
-        println!("'{}' is a Windows Absolute path.", path_str);
+        tracing::debug!("Windows absolute path: {}", path_str);
     } else if relative_path_with_separators {
-        println!(
-            "'{}' is a Relative path with separators (nested).",
-            path_str
-        );
+        tracing::debug!("Relative path with separators: {}", path_str);
     } else {
-        println!("'{}' is a Bare filename (no separators).", path_str);
+        tracing::debug!("Bare filename: {}", path_str);
     }
 
     FilePathConfig {
@@ -91,7 +88,7 @@ fn path_to_url_manual(path_str: &str) -> String {
 
 /// Convert a file path to a `file://` URL.
 pub fn get_file_url(file_path: &String) -> String {
-    println!("file_path in get_file_url function: {}", file_path);
+    tracing::debug!("file_path in get_file_url: {}", file_path);
     let mut path_str: String = std::fs::canonicalize(file_path)
         .unwrap()
         .display()
