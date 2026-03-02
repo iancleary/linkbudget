@@ -12,6 +12,7 @@ pub fn generate_html_summary(
     output_path_str: &str,
 ) -> Result<(), std::io::Error> {
     let path = Path::new(output_path_str);
+    tracing::debug!(output_path = output_path_str, "Generating HTML summary");
     let mut file = File::create(path)?;
 
     let svg = generate_svg(budget);
