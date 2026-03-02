@@ -33,7 +33,15 @@ impl SlantRange {
                 - f64::cos(elevation_angle_radians) * f64::cos(elevation_angle_radians),
         );
 
-        self.body_radius * (inner_term - f64::sin(elevation_angle_radians))
+        let slant_range = self.body_radius * (inner_term - f64::sin(elevation_angle_radians));
+        tracing::trace!(
+            elevation_deg = self.elevation_angle_degrees,
+            altitude_m = self.altitude,
+            body_radius_m = self.body_radius,
+            slant_range_m = slant_range,
+            "Slant range calculated"
+        );
+        slant_range
     }
 }
 

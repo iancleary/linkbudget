@@ -111,7 +111,7 @@ impl Command {
                 open::plot(output_html_path.clone());
             }
             Err(e) => {
-                eprintln!("Error generating HTML table: {}", e);
+                tracing::error!("Error generating HTML table: {}", e);
             }
         }
 

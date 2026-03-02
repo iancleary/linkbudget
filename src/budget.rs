@@ -125,7 +125,15 @@ impl LinkBudget {
     pub fn link_margin_db(&self, modulation: &Modulation, target_ber: f64) -> Option<f64> {
         let actual = self.eb_no_db(modulation);
         let required = ber::required_eb_no_db(target_ber, modulation)?;
-        Some(actual - required)
+        let margin = actual - required;
+        tracing::debug!(
+            actual_eb_no_db = actual,
+            required_eb_no_db = required,
+            margin_db = margin,
+            target_ber,
+            "Link margin"
+        );
+        Some(margin)
     }
 
     /// Link margin in dB for a coded modulation and target BER.

@@ -95,6 +95,15 @@ pub fn sensitivity_matched_filter_dbm(
         + 10.0 * info_bit_rate_bps.log10()
         + implementation_loss_db;
 
+    tracing::debug!(
+        required_eb_no_db,
+        noise_figure_db,
+        info_bit_rate_bps,
+        implementation_loss_db,
+        sensitivity_dbm = sensitivity,
+        "Matched filter sensitivity"
+    );
+
     Some(sensitivity)
 }
 
