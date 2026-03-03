@@ -2,12 +2,12 @@
 
 ## Overview
 
-Rust crate for RF link budget analysis. Covers the full TX → path loss → RX → SNR → Eb/No → BER → margin chain for satellite and terrestrial communication systems. Published on crates.io (v0.5.3).
+Rust crate for RF link budget analysis. Covers the full TX → path loss → RX → SNR → Eb/No → BER → margin chain for satellite and terrestrial communication systems. Published on crates.io (v0.6.1).
 
 ## Commands
 
 ```bash
-cargo test                        # Run all 196 tests
+cargo test                        # Run all 151 tests
 cargo clippy -- -D warnings       # Lint
 cargo fmt -- --check              # Format check
 cargo run                         # Run built-in CLI example
