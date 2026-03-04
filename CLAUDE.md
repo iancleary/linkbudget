@@ -7,7 +7,7 @@ Rust crate for RF link budget analysis. Covers the full TX → path loss → RX 
 ## Commands
 
 ```bash
-cargo test                        # Run all 151 tests
+cargo test                        # Run all 151 tests (v0.6.1)
 cargo clippy -- -D warnings       # Lint
 cargo fmt -- --check              # Format check
 cargo run                         # Run built-in CLI example
