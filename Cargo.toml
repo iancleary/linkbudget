@@ -12,8 +12,6 @@ version = "0.6.1"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rand = "0.8"
-montycarlo = "0.1.0"
 rfconversions = "0.7.0"
 tracing = { version = "0.1.44", default-features = false }
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"], optional = true }
