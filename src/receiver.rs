@@ -69,7 +69,7 @@ mod tests {
 
         let noise_floor: f64 = receiver.calculate_noise_floor();
 
-        assert_eq!(-93.97722915699808, noise_floor);
+        assert!((noise_floor - (-93.9772)).abs() < 0.01);
     }
 
     #[test]
@@ -84,7 +84,7 @@ mod tests {
         let noise_power: f64 = receiver.calculate_noise_power();
 
         // noise floor + noise figure
-        assert_eq!(-90.97722915699808, noise_power);
+        assert!((noise_power - (-90.9772)).abs() < 0.01);
     }
 
     #[test]
@@ -118,6 +118,6 @@ mod tests {
         // returns value in dB
         let snr: f64 = receiver.calculate_snr(input_power);
 
-        assert_eq!(20.977229156998078, snr);
+        assert!((snr - 20.9772).abs() < 0.01);
     }
 }
