@@ -1,0 +1,9 @@
+[project]
+name = "montecarlo-cn0-target-plots"
+version = "0.1.0"
+description = "Plotting utilities for linkbudget Monte Carlo receiver SNR margin example"
+requires-python = ">=3.10"
+dependencies = [
+  "matplotlib>=3.8",
+]
+

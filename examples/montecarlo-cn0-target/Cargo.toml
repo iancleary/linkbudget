@@ -1,0 +1,11 @@
+[package]
+name = "montecarlo-receiver-target"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+montycarlo = "0.1.0"
+rand = "0.8"
+
+linkbudget = { path = "../.." }
