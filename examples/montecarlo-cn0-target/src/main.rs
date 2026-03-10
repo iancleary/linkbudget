@@ -24,7 +24,7 @@ impl Simulation for ReceiverMarginSim {
         let temperature_k = rng.gen_range(250.0..=300.0); // sky/receiver temp spread
         let noise_figure_db = rng.gen_range(1.2..=3.5); // RF front-end variation
         let bandwidth_hz = rng.gen_range(5.0e6..=25.0e6); // waveform/config variation
-        let input_power_dbm = rng.gen_range(-107.0..=-97.0); // fading / pointing / rain spread
+        let input_power_dbm = rng.gen_range(-92.0..=-82.0); // increased 15 dB from original range
 
         (temperature_k, noise_figure_db, bandwidth_hz, input_power_dbm)
     }
