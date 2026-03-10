@@ -269,3 +269,36 @@ If you use `linkbudget` as a library, install any `tracing` subscriber in your a
 - [Raised-cosine filter — Wikipedia](https://en.wikipedia.org/wiki/Raised-cosine_filter)
 - Proakis, J. (1995). *Digital Communications* (3rd ed.). McGraw-Hill.
 - ETSI EN 302 307 — DVB-S2 (LDPC + BCH coding, modulation schemes)
+
+---
+
+## Optional: Monte Carlo Receiver Margin Example (examples crate)
+
+This repo includes an optional standalone example crate for Monte Carlo analysis of
+receiver SNR margin using `montycarlo` + `linkbudget::Receiver`.
+
+Path:
+- `examples/montecarlo-cn0-target/`
+
+What it does:
+- Randomizes realistic receiver parameters each trial:
+  - noise temperature (K)
+  - noise figure (dB)
+  - bandwidth (Hz)
+  - input power (dBm)
+- Instantiates a `Receiver` and computes SNR per trial
+- Computes SNR margin vs a target and writes CSV + summary
+- Produces Python histogram/CDF plots
+
+Run:
+
+```bash
+cd examples/montecarlo-cn0-target
+cargo run
+python3 plot_cn0_margin.py
+```
+
+Output files:
+- `output/receiver_snr_margin_samples.csv`
+- `output/receiver_snr_margin_summary.txt`
+- `output/receiver_snr_margin_plots.png`
