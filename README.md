@@ -294,8 +294,9 @@ Run:
 
 ```bash
 cd examples/montecarlo-cn0-target
+uv sync
 cargo run
-python3 plot_cn0_margin.py
+uv run plot_cn0_margin.py
 ```
 
 Output files:
