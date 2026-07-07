@@ -39,7 +39,7 @@ doc-check:
 
 # verify package contents without publishing
 package:
-  cargo package --dry-run
+  cargo package
 
 # format, lint, test, document, and package like CI
 check: fmt-check lint test doc-check package

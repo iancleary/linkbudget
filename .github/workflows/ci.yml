@@ -26,8 +26,8 @@ jobs:
         run: cargo test --all-features --verbose
       - name: Check documentation
         run: RUSTDOCFLAGS="-D warnings" cargo doc --all-features --no-deps --verbose
-      - name: Package dry run
-        run: cargo package --dry-run --verbose
+      - name: Verify package
+        run: cargo package --verbose
       - name: Build project
         run: cargo build --all-features --verbose
       - name: Publish (on tag)
