@@ -158,7 +158,7 @@ impl LinkBudget {
 #[cfg(test)]
 mod budget_tests {
     use super::*;
-    use crate::coding::{dvbs2_qpsk_r34, FecCode};
+    use crate::coding::dvbs2_qpsk_r34;
 
     fn sample_budget() -> LinkBudget {
         LinkBudget {
@@ -203,7 +203,7 @@ mod budget_tests {
     fn ber_returns_valid_value() {
         let b = sample_budget();
         let ber_val = b.ber(&Modulation::Qpsk);
-        assert!(ber_val >= 0.0 && ber_val <= 0.5);
+        assert!((0.0..=0.5).contains(&ber_val));
     }
 
     #[test]

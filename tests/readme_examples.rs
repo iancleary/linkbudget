@@ -91,7 +91,7 @@ fn link_budget_eb_no_qpsk() {
 fn link_budget_ber_valid() {
     let b = ka_band_leo();
     let ber_val = b.ber(&Modulation::Qpsk);
-    assert!(ber_val >= 0.0 && ber_val <= 0.5);
+    assert!((0.0..=0.5).contains(&ber_val));
 }
 
 #[test]
