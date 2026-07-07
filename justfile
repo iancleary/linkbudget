@@ -27,3 +27,7 @@ test:
 
 # Lint and then test targets (like CI does)
 ci: lint test build
+
+# Cut a GitHub release for an explicit SemVer version.
+cut-release *args:
+  ./scripts/cut-release.sh {{args}}
