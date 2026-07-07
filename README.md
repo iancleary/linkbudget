@@ -3,6 +3,7 @@
 RF link budget analysis for satellite and terrestrial communication systems.
 
 [![Crates.io](https://img.shields.io/crates/v/linkbudget.svg)](https://crates.io/crates/linkbudget)
+[![Docs.rs](https://docs.rs/linkbudget/badge.svg)](https://docs.rs/linkbudget)
 
 ## Features
 
