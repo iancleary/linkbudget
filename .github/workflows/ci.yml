@@ -11,17 +11,28 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: read
+
 jobs:
-  build_and_test:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Use Rust stable
         run: rustup update stable && rustup default stable
-      - name: Build project
-        run: cargo build --verbose
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test --all-features --verbose
+      - name: Check documentation
+        run: RUSTDOCFLAGS="-D warnings" cargo doc --all-features --no-deps --verbose
+      - name: Verify package
+        run: cargo package --verbose
+      - name: Build project
+        run: cargo build --all-features --verbose
       - name: Publish (on tag)
         if: github.ref_type == 'tag'
         run: cargo publish --verbose
