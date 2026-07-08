@@ -21,14 +21,6 @@ lint:
 lint-fix:
 	cargo clippy --all-targets --all-features --fix -- -Dclippy::all
 
-# run the crate
-dev:
-  cargo run
-
-# build the crate
-build:
-  cargo build --release
-
 # run tests
 test:
   cargo test --all-features
@@ -40,6 +32,14 @@ doc-check:
 # verify package contents without publishing
 package:
   cargo package
+
+# build the crate
+build:
+  cargo build --release
+
+# run the crate
+dev:
+  cargo run
 
 # format, lint, test, document, and package like CI
 check: fmt-check lint test doc-check package
