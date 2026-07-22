@@ -5,6 +5,21 @@ RF link budget analysis for satellite and terrestrial communication systems.
 [![Crates.io](https://img.shields.io/crates/v/linkbudget.svg)](https://crates.io/crates/linkbudget)
 [![Docs.rs](https://docs.rs/linkbudget/badge.svg)](https://docs.rs/linkbudget)
 
+## When To Use This Crate
+
+Use `linkbudget` for end-to-end communication link questions: EIRP, FSPL,
+receiver G/T, C/No, SNR, Eb/No, BER, fade margin, modulation/FEC, PFD, Doppler,
+orbit geometry, receiver sensitivity, EVM, and quantization.
+
+If the task starts from `.sNp` S-parameter files or network matrices, use
+`touchstone`. If it is an ordered hardware-block lineup with gain, NF, P1dB, or
+IP3 per stage, use `gainlineup`. Use `rfconversions` for standalone scalar dB,
+dBm, wavelength, and noise-temperature conversions.
+
+Keep units explicit: powers are generally dBm or dBW as named, antenna gains are
+dBi, frequencies are Hz, distances are meters, C/No is dB-Hz, and SNR, Eb/No,
+and margins are dB.
+
 ## Features
 
 | Module              | Description                                                              |
