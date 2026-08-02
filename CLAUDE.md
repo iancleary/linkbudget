@@ -4,6 +4,25 @@
 
 Rust crate for RF link budget analysis. Covers the full TX → path loss → RX → SNR → Eb/No → BER → margin chain for satellite and terrestrial communication systems. Published on crates.io (v0.6.1).
 
+## Agent Usage
+
+Use `linkbudget` when the task is an end-to-end communication link question:
+EIRP, FSPL, receiver G/T, C/No, SNR, Eb/No, BER, fade margin, modulation/FEC,
+PFD, Doppler, orbit geometry, receiver sensitivity, EVM, or quantization. Build
+a `LinkBudget` from `Transmitter`, `PathLoss`, and `Receiver` when the whole
+link matters; use the smaller modules directly for isolated formulas.
+
+Do not use this crate for raw `.sNp` parsing or network-parameter conversion;
+use `touchstone`. Do not use it for ordered hardware-block lineup analysis with
+P1dB/IP3 per stage; use `gainlineup`. Use `rfconversions` for standalone dB,
+dBm, wavelength, and noise-temperature conversions.
+
+Keep units explicit in examples and fixes: powers are generally dBm or dBW as
+named, antenna gains are dBi, frequencies are Hz, distances are meters,
+bandwidths and bit/symbol rates are Hz or bps as named, C/No is dB-Hz, and
+Eb/No/SNR/margins are dB. Avoid mixing occupied bandwidth, noise bandwidth, bit
+rate, symbol rate, and FEC code rate without naming each one.
+
 ## Commands
 
 ```bash

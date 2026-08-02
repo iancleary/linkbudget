@@ -36,9 +36,9 @@ impl Display for PhyRate {
         write!(
             f,
             "Bandwidth {} Hz\nSNR {} (linear)\nPHY Rate {} Mbps",
-            &self.bandwidth.to_string(),
-            &self.snr.to_string(),
-            &self.mbps().to_string()
+            self.bandwidth,
+            self.snr,
+            self.mbps()
         )
     }
 }

@@ -3,6 +3,12 @@
 //! This crate provides tools for calculating link budgets, including
 //! path loss, receiver sensitivity, BER curves, modulation schemes,
 //! EVM, orbital mechanics, and Doppler analysis.
+//!
+//! Use `linkbudget` for end-to-end radio link performance: EIRP, FSPL, receiver
+//! G/T, C/No, SNR, Eb/No, BER, margins, modulation/FEC, PFD, Doppler, orbit
+//! geometry, sensitivity, EVM, and quantization. Use `touchstone` for `.sNp`
+//! S-parameter files, `gainlineup` for ordered block-level gain/NF/P1dB/IP3
+//! lineups, and `rfconversions` for scalar RF conversions.
 #![warn(missing_docs)]
 
 pub mod ber;
