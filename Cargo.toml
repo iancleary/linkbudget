@@ -16,9 +16,9 @@ categories = ["science", "simulation"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rfconversions = "0.7.0"
+rfconversions = "0.7.4"
 tracing = { version = "0.1.44", default-features = false }
-tracing-subscriber = { version = "0.3.22", features = ["env-filter"], optional = true }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"], optional = true }
 
 [features]
 default = ["cli"]
