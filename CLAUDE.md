@@ -2,7 +2,7 @@
 
 ## Overview
 
-Rust crate for RF link budget analysis. Covers the full TX → path loss → RX → SNR → Eb/No → BER → margin chain for satellite and terrestrial communication systems. Published on crates.io (v0.6.1).
+Rust crate for RF link budget analysis. Covers the full TX → path loss → RX → SNR → Eb/No → BER → margin chain for satellite and terrestrial communication systems. Published on crates.io (v0.6.2).
 
 ## Agent Usage
 
@@ -23,10 +23,13 @@ bandwidths and bit/symbol rates are Hz or bps as named, C/No is dB-Hz, and
 Eb/No/SNR/margins are dB. Avoid mixing occupied bandwidth, noise bandwidth, bit
 rate, symbol rate, and FEC code rate without naming each one.
 
+For the deeper operating loop that keeps changes agent-intuitive,
+agent-ergonomic, and agent-accretive, see `docs/agent-operating-loop.md`.
+
 ## Commands
 
 ```bash
-cargo test                        # Run all 151 tests (v0.6.1)
+cargo test                        # Run all tests
 cargo clippy -- -D warnings       # Lint
 cargo fmt -- --check              # Format check
 cargo run                         # Run built-in CLI example
@@ -74,4 +77,5 @@ just cut-release --version <semver>
 - **src/budget.rs** — Core `LinkBudget` struct that ties everything together
 - **src/coding.rs** — DVB-S2 presets and FEC integration
 - **src/ber.rs** — BER curves and link margin calculations
+- **docs/agent-operating-loop.md** — Agent navigation, RF invariants, and verification ladder
 - Tests are co-located in each module file
