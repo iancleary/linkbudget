@@ -22,6 +22,9 @@ bandwidths and bit/symbol rates are Hz or bps as named, C/No is dB-Hz, and
 Eb/No/SNR/margins are dB. Avoid mixing occupied bandwidth, noise bandwidth, bit
 rate, symbol rate, and FEC code rate without naming each one.
 
+For deeper repo navigation, verification choices, and how to make future changes
+accretive, see `docs/agent-operating-loop.md`.
+
 ## Commands
 
 ```bash
@@ -44,5 +47,7 @@ release as the final public step of a real release.
 ## Notes
 
 - Keep changes minimal and aligned to the crate's RF link-budget purpose.
+- Prefer public examples that are mirrored by `tests/readme_examples.rs`, and
+  scenario tests for realistic link-closure behavior.
 - Run `cargo fmt -- --check`, `cargo clippy --all-targets --all-features -- -D warnings`, and `cargo test` for behavior changes.
 - Claude Code guidance lives in `CLAUDE.md`; keep both files consistent when changing repo workflows.
