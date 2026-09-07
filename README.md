@@ -20,6 +20,13 @@ Keep units explicit: powers are generally dBm or dBW as named, antenna gains are
 dBi, frequencies are Hz, distances are meters, C/No is dB-Hz, and SNR, Eb/No,
 and margins are dB.
 
+## Installation
+
+```toml
+[dependencies]
+linkbudget = "0.6.3"
+```
+
 ## Features
 
 | Module              | Description                                                              |
