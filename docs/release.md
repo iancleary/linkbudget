@@ -44,8 +44,11 @@ The runner owns these local mutations:
 
 It validates with:
 
-- `cargo build --locked --verbose`
-- `cargo test --locked --verbose`
+- `cargo fmt --all -- --check`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+- `cargo test --all-features`
+- `RUSTDOCFLAGS="-D warnings" cargo doc --all-features --no-deps`
+- `cargo package --allow-dirty`
 
 Then it commits the version bump, creates an annotated `vX.Y.Z` tag, pushes the branch and tag, and makes `gh release create` the final public-facing release action. The repository's GitHub Actions release workflow publishes to crates.io when the GitHub release is published.
 

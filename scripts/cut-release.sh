@@ -192,8 +192,11 @@ if not changed:
 lockfile.write_text("".join(updated_blocks))
 PY
 
-cargo build --locked --verbose
-cargo test --locked --verbose
+cargo fmt --all -- --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all-features
+RUSTDOCFLAGS="-D warnings" cargo doc --all-features --no-deps
+cargo package --allow-dirty
 
 if [[ "$dry_run" -eq 1 ]]; then
   echo "Dry run succeeded for $package_name $tag."
