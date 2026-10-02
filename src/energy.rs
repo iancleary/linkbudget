@@ -13,8 +13,8 @@
 //! - C/No = SNR + 10·log10(BW)
 //! - Es/No = C/No - 10·log10(Rs)
 //! - Ec/No = Es/No - 10·log10(k)    where k = bits per symbol
-//! - Eb/No = Ec/No + 10·log10(R)     where R = code rate (Eb/No = Ec/No / R in linear)
-//!   equivalently: Eb/No = Es/No - 10·log10(k) + 10·log10(R)
+//! - Eb/No = Ec/No - 10·log10(R)     where R = code rate (Eb/No = Ec/No / R in linear)
+//!   equivalently: Eb/No = Es/No - 10·log10(k) - 10·log10(R)
 //!   or: Eb/No = C/No - 10·log10(Rb)
 
 use crate::modulation::Modulation;
@@ -46,19 +46,11 @@ pub fn c_over_no_to_es_over_no(c_over_no_db_hz: f64, symbol_rate: f64) -> f64 {
     c_over_no_db_hz - 10.0 * symbol_rate.log10()
 }
 
-/// Convert Es/No to Eb/No given modulation and code rate
-/// Eb/No = Es/No - 10·log10(k) + 10·log10(R)
-///       = Es/No - 10·log10(k/R)
+/// Convert Es/No to Eb/No given modulation and code rate.
 ///
-/// Note: Eb > Ec because Eb = Ec/R and R < 1, so dividing by R increases energy.
-/// In dB: Eb/No = Ec/No - 10·log10(R) ... but Ec/No = Es/No - 10·log10(k)
-/// so Eb/No = Es/No - 10·log10(k) - 10·log10(R)
-/// Wait — let's be precise:
-///   Rb = Rs · k · R  (info bit rate = symbol rate × bits/symbol × code rate)
-///   Eb = C / Rb = C / (Rs · k · R)
-///   Eb/No = C/No / (Rs · k · R) = (C/No) - 10log10(Rs·k·R) [in dB]
-///   Eb/No = Es/No - 10log10(k·R)
-///   Eb/No = Es/No - 10log10(k) - 10log10(R)
+/// With information bit rate `Rb = Rs × k × R`, where `Rs` is symbol rate,
+/// `k` is bits per symbol, and `R` is code rate:
+/// `Eb/No = Es/No - 10·log10(k) - 10·log10(R)`.
 #[doc(alias = "Eb/N0")]
 #[must_use]
 pub fn es_over_no_to_eb_over_no(
