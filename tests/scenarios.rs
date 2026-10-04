@@ -204,12 +204,14 @@ fn pin_at_receiver_equation() {
     let fspl = budget.path_loss.calculate();
     let expected_pin = 30.0 + 10.0 - fspl - 5.0 + 20.0;
     let actual_pin = budget.pin_at_receiver();
+    let from_eirp = budget.transmitter.eirp_dbm() - budget.path_loss() + budget.receiver.gain;
     assert!(
         (actual_pin - expected_pin).abs() < 0.001,
         "Pin mismatch: got {:.3}, expected {:.3}",
         actual_pin,
         expected_pin
     );
+    assert!((actual_pin - from_eirp).abs() < 1e-10);
 }
 
 /// SNR should increase when receiver gain increases (all else equal).

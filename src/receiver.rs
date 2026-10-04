@@ -44,13 +44,9 @@ impl Receiver {
     #[doc(alias = "SNR")]
     #[must_use]
     pub fn calculate_snr(&self, input_power: f64) -> f64 {
-        let receiver_noise_floor_dbm = self.calculate_noise_floor();
-
-        let receiver_total_noise_power = receiver_noise_floor_dbm + self.noise_figure;
-
         // Assumes receiver input power is spread across the bandwidth
         // returns value in dB
-        input_power - receiver_total_noise_power
+        input_power - self.calculate_noise_power()
     }
 }
 

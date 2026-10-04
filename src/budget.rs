@@ -14,7 +14,7 @@ use crate::transmitter::Transmitter;
 pub struct LinkBudget {
     /// Human-readable name for this link.
     pub name: &'static str,
-    /// Channel bandwidth in Hz.
+    /// Channel bandwidth in Hz (treated as symbol rate for throughput and Eb/No).
     pub bandwidth: f64,
     /// Transmitter (include any pointing loss in the gain).
     pub transmitter: Transmitter,
@@ -47,7 +47,7 @@ impl LinkBudget {
     pub fn pin_at_receiver(&self) -> f64 {
         let path_loss_in_db = self.path_loss();
 
-        self.transmitter.output_power + self.transmitter.gain - path_loss_in_db + self.receiver.gain
+        self.transmitter.eirp_dbm() - path_loss_in_db + self.receiver.gain
     }
 
     /// SNR at the receiver in dB.
@@ -85,19 +85,25 @@ impl LinkBudget {
     }
 
     /// Eb/No in dB for a given modulation scheme (uncoded).
+    ///
+    /// Assumes the channel bandwidth is the symbol rate (zero roll-off).
+    /// Receiver noise bandwidth may differ from this channel bandwidth.
     #[doc(alias = "Eb/N0")]
     #[must_use]
     pub fn eb_no_db(&self, modulation: &Modulation) -> f64 {
-        let eta = modulation.bits_per_symbol();
-        self.snr() - 10.0 * eta.log10()
+        let info_bit_rate_bps = self.bandwidth * modulation.bits_per_symbol();
+        energy::c_over_no_to_eb_over_no(self.c_over_no(), info_bit_rate_bps)
     }
 
     /// Eb/No in dB for a coded modulation scheme.
+    ///
+    /// Assumes the channel bandwidth is the symbol rate (zero roll-off).
+    /// Receiver noise bandwidth may differ from this channel bandwidth.
     #[doc(alias = "Eb/N0")]
     #[must_use]
     pub fn eb_no_coded_db(&self, coded_mod: &CodedModulation) -> f64 {
-        let eta = coded_mod.spectral_efficiency();
-        self.snr() - 10.0 * eta.log10()
+        let info_bit_rate_bps = coded_mod.throughput_bps(self.bandwidth);
+        energy::c_over_no_to_eb_over_no(self.c_over_no(), info_bit_rate_bps)
     }
 
     /// BER for a given modulation at the link's Eb/No (uncoded).
@@ -159,6 +165,7 @@ impl LinkBudget {
 mod budget_tests {
     use super::*;
     use crate::coding::dvbs2_qpsk_r34;
+    use crate::coding::FecCode;
 
     fn sample_budget() -> LinkBudget {
         LinkBudget {
@@ -197,6 +204,45 @@ mod budget_tests {
         let eb_no = b.eb_no_db(&Modulation::Qpsk);
         let expected = b.snr() - 10.0 * 2.0_f64.log10();
         assert!((eb_no - expected).abs() < 0.01);
+    }
+
+    #[test]
+    fn eb_no_matches_energy_chain_when_noise_and_channel_bandwidths_differ() {
+        let mut b = sample_budget();
+        b.bandwidth = 20e6; // channel bandwidth and assumed symbol rate
+        b.receiver.bandwidth = 30e6; // receiver noise bandwidth
+        let uncoded = Modulation::Qpsk;
+        let coded = CodedModulation::new(Modulation::Qpsk, FecCode::Ldpc { rate: 0.75 });
+
+        let expected_uncoded =
+            energy::snr_to_eb_over_no(b.snr(), b.receiver.bandwidth, &uncoded, b.bandwidth, 1.0);
+        let expected_coded = energy::snr_to_eb_over_no(
+            b.snr(),
+            b.receiver.bandwidth,
+            &coded.modulation,
+            b.bandwidth,
+            coded.code_rate(),
+        );
+
+        assert!((b.eb_no_db(&uncoded) - expected_uncoded).abs() < 1e-10);
+        assert!((b.eb_no_coded_db(&coded) - expected_coded).abs() < 1e-10);
+        let bandwidth_correction_db = 10.0 * (b.receiver.bandwidth / b.bandwidth).log10();
+        let eb_no_from_snr = b.snr() - 10.0 * uncoded.bits_per_symbol().log10();
+        assert!((b.eb_no_db(&uncoded) - eb_no_from_snr - bandwidth_correction_db).abs() < 1e-10);
+        assert!(
+            (b.eb_no_coded_db(&coded) - b.eb_no_db(&uncoded) + 10.0 * coded.code_rate().log10())
+                .abs()
+                < 1e-10
+        );
+
+        let uncoded_as_coded = CodedModulation::new(Modulation::Qpsk, FecCode::Uncoded);
+        assert!((b.eb_no_db(&uncoded) - b.eb_no_coded_db(&uncoded_as_coded)).abs() < 1e-10);
+
+        let original_snr = b.snr();
+        let original_eb_no = b.eb_no_db(&uncoded);
+        b.receiver.bandwidth *= 2.0;
+        assert!((b.snr() - original_snr + 10.0 * 2.0_f64.log10()).abs() < 1e-10);
+        assert!((b.eb_no_db(&uncoded) - original_eb_no).abs() < 1e-10);
     }
 
     #[test]

@@ -107,12 +107,26 @@ pub fn link_margin_db(
 
 /// Required Eb/No (dB) for a target BER, found by bisection search.
 ///
-/// Returns `None` if no solution found in [−5, 50] dB range.
+/// Returns `None` for a nonfinite or nonpositive target, nonfinite BER at a
+/// search endpoint, or a target outside the BER values reached in [−5, 50] dB.
 #[doc(alias = "Eb/N0")]
 #[must_use]
 pub fn required_eb_no_db(target_ber: f64, modulation: &Modulation) -> Option<f64> {
     let mut lo = -5.0_f64;
     let mut hi = 50.0_f64;
+
+    if !target_ber.is_finite() || target_ber <= 0.0 {
+        return None;
+    }
+    let ber_at_lo = ber_from_db(lo, modulation);
+    let ber_at_hi = ber_from_db(hi, modulation);
+    if !ber_at_lo.is_finite()
+        || !ber_at_hi.is_finite()
+        || target_ber > ber_at_lo
+        || target_ber < ber_at_hi
+    {
+        return None;
+    }
 
     // BER decreases as Eb/No increases, so we search for the crossing
     for _ in 0..100 {
@@ -138,6 +152,18 @@ mod tests {
     #[test]
     fn erfc_zero() {
         assert!((erfc(0.0) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn required_eb_no_rejects_invalid_or_unreachable_targets() {
+        let modulation = Modulation::Qpsk;
+        for target in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, 0.0, -1e-5, 0.5] {
+            assert_eq!(required_eb_no_db(target, &modulation), None);
+        }
+        let target = 1e-5;
+        let required = required_eb_no_db(target, &modulation).unwrap();
+        assert!(required.is_finite());
+        assert!(((ber_from_db(required, &modulation) - target) / target).abs() < 1e-6);
     }
 
     #[test]
