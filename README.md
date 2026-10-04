@@ -24,15 +24,18 @@ and margins are dB.
 
 ```toml
 [dependencies]
-linkbudget = "0.6.3"
+linkbudget = "0.7.0"
 ```
+
+The receiver API below is available in 0.7.0. For the previous 0.6.5 API,
+see the [0.6.5 README](https://github.com/iancleary/linkbudget/blob/v0.6.5/README.md).
 
 ## Features
 
 | Module              | Description                                                              |
 |---------------------|--------------------------------------------------------------------------|
 | **Transmitter**     | Output power, gain, EIRP (dBm/dBW)                                      |
-| **Receiver**        | Gain, noise temperature, noise figure, SNR, G/T                         |
+| **Receiver**        | Gain, explicit system or source noise, SNR, G/T                        |
 | **Path Loss**       | Free space path loss (FSPL) from frequency and distance                  |
 | **Link Budget**     | End-to-end: TX → path loss → RX → SNR → Eb/No → BER → margin           |
 | **PHY Rate**        | Shannon capacity from SNR and bandwidth                                  |
@@ -50,7 +53,7 @@ linkbudget = "0.6.3"
 ## Link Budget — End-to-End Example
 
 ```rust
-use linkbudget::{LinkBudget, PathLoss, Transmitter, Receiver, Modulation};
+use linkbudget::{LinkBudget, PathLoss, Transmitter, Receiver, ReceiverNoise, Modulation};
 use linkbudget::coding;
 
 let budget = LinkBudget {
@@ -63,8 +66,10 @@ let budget = LinkBudget {
     },
     receiver: Receiver {
         gain: 40.0,               // dBi
-        temperature: 290.0,       // K
-        noise_figure: 2.0,        // dB
+        noise: ReceiverNoise::SourceAndNoiseFigure {
+            source_temperature_k: 290.0,
+            noise_figure_db: 2.0, // receiver NF at the 290 K reference
+        },
         bandwidth: 36e6,          // Hz
     },
     path_loss: PathLoss {
@@ -96,6 +101,63 @@ println!("Throughput: {:.0} Mbps", budget.throughput_bps(&coded) / 1e6);
 println!("Coded margin: {:.1} dB",
     budget.link_margin_coded_db(&coded, 1e-5).unwrap());
 ```
+
+## Receiver Noise and Migration from 0.6.x
+
+Replace the old `Receiver.temperature` and `Receiver.noise_figure` fields with
+`Receiver.noise`. Choose the variant that matches the temperature you have:
+
+- `SystemTemperature` accepts total input-referred system temperature. This
+  already includes receiver-added noise. Do not apply noise figure again.
+- `SourceAndNoiseFigure` accepts source temperature and receiver noise figure.
+  With `F = 10^(NF/10)`, the total is `T_sys = T_source + 290 * (F - 1)` kelvin.
+
+Use finite inputs with positive total temperature and positive noise bandwidth.
+Source temperature and receiver noise figure must be nonnegative. The model
+does not validate these inputs at runtime. Gain, signal power, and temperature
+must refer to the same receiver input plane.
+
+For example, a 50 K source and noise factor 2 give a total of 340 K:
+
+```rust
+use linkbudget::{Receiver, ReceiverNoise};
+
+let from_source = Receiver {
+    gain: 40.0, // dBi
+    noise: ReceiverNoise::SourceAndNoiseFigure {
+        source_temperature_k: 50.0,
+        noise_figure_db: 10.0 * 2.0_f64.log10(),
+    },
+    bandwidth: 20e6, // equivalent noise bandwidth, Hz
+};
+let from_system = Receiver {
+    gain: 40.0,
+    noise: ReceiverNoise::SystemTemperature { temperature_k: 340.0 },
+    bandwidth: 20e6,
+};
+assert!((from_source.system_noise_temperature_k() - 340.0).abs() < 1e-10);
+assert!((from_source.calculate_noise_power() - from_system.calculate_noise_power()).abs() < 1e-10);
+assert!((from_source.g_over_t_db() - from_system.g_over_t_db()).abs() < 1e-10);
+```
+
+Noise power is `k * T_sys * B_noise`, and G/T uses the same `T_sys`.
+`calculate_noise_floor()` now returns total noise, as an alias of
+`calculate_noise_power()`. If you need source-only noise, compute `k * T_source
+* B_noise` from your source temperature.
+
+For a 290 K source, `SourceAndNoiseFigure` preserves the old noise power and
+SNR. Its G/T now includes receiver-added noise. For other source temperatures,
+noise power changes because the old `k * T_source * B_noise * F` expression
+used the wrong noise-figure reference temperature.
+
+`LinkBudget::phy_rate()` gives the ideal flat AWGN channel capacity:
+`B_channel * log2(1 + C / (N0 * B_channel))`. Receiver SNR uses the receiver
+noise bandwidth, which can differ from channel bandwidth. Capacity uses C/No
+to put signal and noise in the same channel bandwidth. This assumes all signal
+power is captured; it does not model filter clipping or distortion.
+
+See the [receiver noise decision and physics proof](docs/adr/0001-explicit-receiver-noise.md)
+for the derivation, numerical counterexamples, and compatibility decision.
 
 ## Modulation & BER
 
@@ -305,8 +367,8 @@ Path:
 
 What it does:
 - Randomizes realistic receiver parameters each trial:
-  - noise temperature (K)
-  - noise figure (dB)
+  - source noise temperature (K)
+  - receiver noise figure at the 290 K reference (dB)
   - bandwidth (Hz)
   - input power (dBm)
 - Instantiates a `Receiver` and computes SNR per trial

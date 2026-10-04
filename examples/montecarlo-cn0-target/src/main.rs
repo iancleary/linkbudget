@@ -1,4 +1,4 @@
-use linkbudget::{Modulation, ber, Receiver};
+use linkbudget::{ber, Modulation, Receiver, ReceiverNoise};
 use montycarlo::{MonteCarloEngine, Simulation};
 use rand::Rng;
 use std::fs::{create_dir_all, File};
@@ -6,7 +6,7 @@ use std::io::Write;
 
 /// Monte Carlo analysis for receiver SNR margin against QPSK target.
 ///
-/// Uses randomized `Receiver` parameters (temperature, noise figure, bandwidth)
+/// Uses randomized source temperature, receiver noise figure, and noise bandwidth
 /// plus randomized received power to emulate environmental + implementation spread.
 /// Computes SNR margin vs the Eb/No required for QPSK at a target BER.
 struct ReceiverMarginSim {
@@ -14,26 +14,33 @@ struct ReceiverMarginSim {
 }
 
 impl Simulation for ReceiverMarginSim {
-    // (temperature K, noise_figure dB, bandwidth Hz, input_power dBm)
+    // (source temperature K, receiver noise figure dB, bandwidth Hz, input power dBm)
     type Sample = (f64, f64, f64, f64);
     // SNR margin (dB): positive means target is met.
     type Output = f64;
 
     fn sample(&self, rng: &mut impl Rng) -> Self::Sample {
-        // Tighter range for realistic sky + receiver scenario
-        let temperature_k = rng.gen_range(250.0..=300.0); // sky/receiver temp spread
+        // Sample source noise separately from the receiver's added noise.
+        let source_temperature_k = rng.gen_range(250.0..=300.0);
         let noise_figure_db = rng.gen_range(1.2..=3.5); // RF front-end variation
         let bandwidth_hz = rng.gen_range(5.0e6..=25.0e6); // waveform/config variation
         let input_power_dbm = rng.gen_range(-92.0..=-82.0); // increased 15 dB from original range
 
-        (temperature_k, noise_figure_db, bandwidth_hz, input_power_dbm)
+        (
+            source_temperature_k,
+            noise_figure_db,
+            bandwidth_hz,
+            input_power_dbm,
+        )
     }
 
     fn evaluate(&self, s: &Self::Sample) -> Self::Output {
         let rx = Receiver {
             gain: 42.0, // representative of dish gain in link models
-            temperature: s.0,
-            noise_figure: s.1,
+            noise: ReceiverNoise::SourceAndNoiseFigure {
+                source_temperature_k: s.0,
+                noise_figure_db: s.1,
+            },
             bandwidth: s.2,
         };
 
@@ -44,11 +51,10 @@ impl Simulation for ReceiverMarginSim {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let trials = 50_000;
-    
+
     // QPSK required Eb/No for BER = 1e-6 (typical design target)
-    let target_eb_no_db = ber::required_eb_no_db(1e-6, &Modulation::Qpsk)
-        .unwrap_or(5.5); // fallback to ~5.5 dB if calculation fails
-    
+    let target_eb_no_db = ber::required_eb_no_db(1e-6, &Modulation::Qpsk).unwrap_or(5.5); // fallback to ~5.5 dB if calculation fails
+
     // For simplicity, use Eb/No as the target SNR (assumes 1 bps/Hz)
     let target_snr_db = target_eb_no_db;
 

@@ -46,7 +46,7 @@ pub use modulation::Modulation;
 pub use path_loss::PathLoss;
 pub use pfd::*;
 pub use quantization::*;
-pub use receiver::Receiver;
+pub use receiver::{Receiver, ReceiverNoise};
 pub use sensitivity::{
     noise_floor_dbm, rolloff_penalty_db, sensitivity_bandpass_dbm, sensitivity_dbm,
     sensitivity_from_snr_dbm, sensitivity_matched_filter_dbm,
