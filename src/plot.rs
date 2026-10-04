@@ -187,14 +187,14 @@ fn generate_svg(budget: &LinkBudget) -> String {
             <rect width="{}" height="{}" rx="5" ry="5" fill="#e8f5e9" stroke="#4caf50" stroke-width="2"/>
             <text x="{}" y="25" text-anchor="middle" font-weight="bold" fill="#2e7d32">Receiver</text>
             <text x="10" y="45" font-size="12" fill="#333">Gain: {:.1} dB</text>
-            <text x="10" y="60" font-size="12" fill="#333">NF: {:.1} dB</text>
+            <text x="10" y="60" font-size="12" fill="#333">Tsys: {:.1} K</text>
         </g>
         "##,
         rx_x, component_y,
         component_width, component_height,
         component_width / 2,
         budget.receiver.gain,
-        budget.receiver.noise_figure,
+        budget.receiver.system_noise_temperature_k(),
         // rx_power
     ));
 
@@ -250,7 +250,7 @@ mod tests {
     use super::*;
     use crate::budget::LinkBudget;
     use crate::path_loss::PathLoss;
-    use crate::receiver::Receiver;
+    use crate::receiver::{Receiver, ReceiverNoise};
     use crate::transmitter::Transmitter;
 
     #[test]
@@ -265,8 +265,10 @@ mod tests {
             },
             receiver: Receiver {
                 gain: 20.0,
-                temperature: 290.0,
-                noise_figure: 5.0,
+                noise: ReceiverNoise::SourceAndNoiseFigure {
+                    source_temperature_k: 290.0,
+                    noise_figure_db: 5.0,
+                },
                 bandwidth: 10e6,
             },
             path_loss: PathLoss {

@@ -7,6 +7,7 @@ use crate::open;
 use crate::LinkBudget;
 use crate::PathLoss;
 use crate::Receiver;
+use crate::ReceiverNoise;
 use crate::Transmitter;
 
 /// CLI command runner.
@@ -95,8 +96,10 @@ impl Command {
             },
             receiver: Receiver {
                 gain: 10.0,
-                temperature: 290.0,
-                noise_figure: 4.0,
+                noise: ReceiverNoise::SourceAndNoiseFigure {
+                    source_temperature_k: 290.0,
+                    noise_figure_db: 4.0,
+                },
                 bandwidth: 10e6,
             },
             path_loss: PathLoss {

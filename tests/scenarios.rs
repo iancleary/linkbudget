@@ -20,9 +20,11 @@ fn geo_ka_band_downlink() {
             bandwidth: 36e6,
         },
         receiver: Receiver {
-            gain: 40.0,         // 0.6m consumer dish at 20 GHz
-            temperature: 150.0, // low-noise outdoor LNB
-            noise_figure: 1.2,  // dB
+            gain: 40.0, // 0.6m consumer dish at 20 GHz
+            // Total antenna plus LNB noise, referred to the receiver input.
+            noise: ReceiverNoise::SystemTemperature {
+                temperature_k: 150.0,
+            },
             bandwidth: 36e6,
         },
         path_loss: PathLoss {
@@ -65,9 +67,12 @@ fn leo_ku_band_uplink() {
             bandwidth: 240e6,
         },
         receiver: Receiver {
-            gain: 38.0,         // satellite phased array beam
-            temperature: 400.0, // earth-facing, higher noise temp
-            noise_figure: 3.0,
+            gain: 38.0, // satellite phased array beam
+            // Earth-facing source noise plus receiver-added noise from its NF.
+            noise: ReceiverNoise::SourceAndNoiseFigure {
+                source_temperature_k: 400.0,
+                noise_figure_db: 3.0,
+            },
             bandwidth: 240e6,
         },
         path_loss: PathLoss {
@@ -109,9 +114,11 @@ fn deep_space_mars_xband() {
             bandwidth: 4e6,
         },
         receiver: Receiver {
-            gain: 74.0,        // 34m DSN antenna
-            temperature: 25.0, // cryogenic LNA
-            noise_figure: 0.3, // dB
+            gain: 74.0, // 34m DSN antenna
+            // Total antenna plus cryogenic receiver noise at the input.
+            noise: ReceiverNoise::SystemTemperature {
+                temperature_k: 25.0,
+            },
             bandwidth: 4e6,
         },
         path_loss: PathLoss {
@@ -156,8 +163,10 @@ fn terrestrial_microwave_backhaul() {
         },
         receiver: Receiver {
             gain: 38.0,
-            temperature: 290.0,
-            noise_figure: 4.0,
+            noise: ReceiverNoise::SourceAndNoiseFigure {
+                source_temperature_k: 290.0,
+                noise_figure_db: 4.0,
+            },
             bandwidth: 28e6,
         },
         path_loss: PathLoss {
@@ -190,8 +199,10 @@ fn pin_at_receiver_equation() {
         },
         receiver: Receiver {
             gain: 20.0,
-            temperature: 290.0,
-            noise_figure: 3.0,
+            noise: ReceiverNoise::SourceAndNoiseFigure {
+                source_temperature_k: 290.0,
+                noise_figure_db: 3.0,
+            },
             bandwidth: 1e6,
         },
         path_loss: PathLoss {
@@ -227,8 +238,10 @@ fn snr_increases_with_receiver_gain() {
         },
         receiver: Receiver {
             gain: rx_gain,
-            temperature: 290.0,
-            noise_figure: 2.0,
+            noise: ReceiverNoise::SourceAndNoiseFigure {
+                source_temperature_k: 290.0,
+                noise_figure_db: 2.0,
+            },
             bandwidth: 10e6,
         },
         path_loss: PathLoss {

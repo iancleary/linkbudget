@@ -5,7 +5,7 @@ use linkbudget::coding::{self, CodedModulation, FecCode};
 use linkbudget::modulation::Modulation;
 use linkbudget::sensitivity;
 use linkbudget::{ber, energy, evm};
-use linkbudget::{LinkBudget, PathLoss, Receiver, Transmitter};
+use linkbudget::{LinkBudget, PathLoss, Receiver, ReceiverNoise, Transmitter};
 
 // =====================================================================
 // Helper: shared Ka-band LEO budget used across examples
@@ -22,8 +22,10 @@ fn ka_band_leo() -> LinkBudget {
         },
         receiver: Receiver {
             gain: 40.0,
-            temperature: 290.0,
-            noise_figure: 2.0,
+            noise: ReceiverNoise::SourceAndNoiseFigure {
+                source_temperature_k: 290.0,
+                noise_figure_db: 2.0,
+            },
             bandwidth: 36e6,
         },
         path_loss: PathLoss {
@@ -48,9 +50,35 @@ fn link_budget_eirp() {
 #[test]
 fn link_budget_g_over_t() {
     let b = ka_band_leo();
-    // G/T = 40 - 10*log10(290) ≈ 40 - 24.62 = 15.38
+    // Tsys = 290 + 290*(10^(2/10) - 1) = 459.619 K.
+    // At a 290 K source, G/T = gain - 10*log10(290) - NF = 13.3760 dB/K.
     let g_over_t = b.receiver.g_over_t_db();
-    assert!((g_over_t - 15.38).abs() < 0.1);
+    let expected = 40.0 - 10.0 * 290.0_f64.log10() - 2.0;
+    assert!((g_over_t - expected).abs() < 1e-10);
+}
+
+#[test]
+fn receiver_noise_specifications_agree() {
+    let total = Receiver {
+        gain: 40.0,
+        noise: ReceiverNoise::SystemTemperature {
+            temperature_k: 340.0,
+        },
+        bandwidth: 20e6,
+    };
+    let source_and_nf = Receiver {
+        gain: 40.0,
+        noise: ReceiverNoise::SourceAndNoiseFigure {
+            source_temperature_k: 50.0,
+            noise_figure_db: 10.0 * 2.0_f64.log10(),
+        },
+        bandwidth: 20e6,
+    };
+
+    // Tsys = 50 + 290*(2 - 1) = 340 K in either representation.
+    assert!((source_and_nf.system_noise_temperature_k() - 340.0).abs() < 1e-10);
+    assert!((total.calculate_noise_power() - source_and_nf.calculate_noise_power()).abs() < 1e-10);
+    assert!((total.g_over_t_db() - source_and_nf.g_over_t_db()).abs() < 1e-10);
 }
 
 #[test]

@@ -64,12 +64,20 @@ impl LinkBudget {
         10.0_f64.powf(self.snr() / 10.0)
     }
 
-    /// Shannon-capacity PHY rate for this link.
+    /// Ideal AWGN channel capacity over this link's channel bandwidth.
+    ///
+    /// Uses `B * log2(1 + (C/No)/B)`, where `B` is [`Self::bandwidth`].
+    /// Receiver noise bandwidth sets the integrated noise used to infer C/No;
+    /// channel bandwidth sets the noise power in the capacity calculation.
+    /// Assumes white noise, a flat channel, and all received signal power within
+    /// the channel and receiver passband. Filter clipping and distortion are
+    /// not modeled. This is a capacity bound, not a modulation's throughput.
     #[must_use]
     pub fn phy_rate(&self) -> PhyRate {
+        let channel_snr_db = energy::c_over_no_to_snr(self.c_over_no(), self.bandwidth);
         PhyRate {
             bandwidth: self.bandwidth,
-            snr: self.snr_linear(),
+            snr: 10.0_f64.powf(channel_snr_db / 10.0),
         }
     }
 
@@ -166,6 +174,7 @@ mod budget_tests {
     use super::*;
     use crate::coding::dvbs2_qpsk_r34;
     use crate::coding::FecCode;
+    use crate::receiver::ReceiverNoise;
 
     fn sample_budget() -> LinkBudget {
         LinkBudget {
@@ -178,8 +187,10 @@ mod budget_tests {
             },
             receiver: Receiver {
                 gain: 40.0,
-                temperature: 290.0,
-                noise_figure: 2.0,
+                noise: ReceiverNoise::SourceAndNoiseFigure {
+                    source_temperature_k: 290.0,
+                    noise_figure_db: 2.0,
+                },
                 bandwidth: 36e6,
             },
             path_loss: PathLoss {
