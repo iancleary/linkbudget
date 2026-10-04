@@ -1,11 +1,16 @@
 //! Transmitter model for link budget calculations.
+//!
+//! Directional gain is a power ratio relative to an isotropic antenna:
+//! `EIRP = P_tx * G_tx`. Products become sums under `10*log10`, which explains
+//! the dBm + dBi calculation. See `docs/physics-rf-link.md` for the propagation
+//! derivation and reference-plane assumptions.
 
 /// A radio transmitter with output power, antenna gain, and bandwidth.
 #[doc(alias = "EIRP")]
 pub struct Transmitter {
     /// Output power in dBm.
     pub output_power: f64,
-    /// Antenna gain in dB.
+    /// Antenna gain in dBi, including any supplied feed or pointing loss.
     pub gain: f64,
     /// Bandwidth in Hz.
     pub bandwidth: f64,
@@ -20,6 +25,9 @@ impl Transmitter {
     }
 
     /// Effective Isotropic Radiated Power in dBW.
+    ///
+    /// A watt is 1000 milliwatts, so changing the power reference subtracts
+    /// `10*log10(1000) = 30` dB without changing the physical power.
     #[doc(alias = "EIRP")]
     #[must_use]
     pub fn eirp_dbw(&self) -> f64 {

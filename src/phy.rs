@@ -1,13 +1,22 @@
 //! Shannon-capacity PHY rate calculation.
+//!
+//! For Gaussian signal plus independent Gaussian noise, the entropy difference
+//! is `0.5*log2(1 + SNR)` per real degree of freedom. A band-limited channel has
+//! `2*B` such degrees per second, giving `B*log2(1 + SNR)` bit/s.
+//! See `docs/physics-rf-link.md` for the derivation, assumptions, and tests.
 
 use core::fmt;
 use std::fmt::{Display, Formatter};
 
-/// Shannon-capacity PHY rate for a given bandwidth and SNR.
+/// Ideal flat-AWGN channel capacity for a given bandwidth and SNR.
+///
+/// This is an average-power capacity bound with complete signal capture.
+/// It does not include a finite constellation, decoder loss, or packet overhead.
 pub struct PhyRate {
-    /// Channel bandwidth in Hz.
+    /// Channel bandwidth in Hz; must be finite and positive.
     pub bandwidth: f64,
-    /// Signal-to-noise ratio (linear, not dB).
+    /// Signal-to-noise ratio (linear, not dB) over the same channel bandwidth.
+    /// Must be finite and nonnegative; use `C/(N0*bandwidth)`.
     pub snr: f64,
 }
 

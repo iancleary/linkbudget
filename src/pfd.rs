@@ -1,15 +1,27 @@
 //! Power Flux Density (PFD) calculations.
+//!
+//! Conservation of radiated power over a far-field sphere gives
+//! `S = EIRP/(4*pi*d^2)`. Taking `10*log10` converts the area division into
+//! subtraction. See `docs/physics-rf-link.md` for the derivation and units.
 
 use std::f64::consts::PI;
 
 /// Power Flux Density in dBW/m².
+///
+/// Uses directional EIRP in dBW and positive far-field distance in metres.
+/// Extra propagation losses must already be accounted for in the supplied
+/// power if they are to affect this free-space result.
 #[doc(alias = "EIRP")]
 #[must_use]
 pub fn power_flux_density_dbw_per_m2(eirp_dbw: f64, distance_m: f64) -> f64 {
     eirp_dbw - 10.0 * (4.0 * PI * distance_m * distance_m).log10()
 }
 
-/// Power Flux Density in dBW/m²/MHz (for regulatory limits, spread over bandwidth).
+/// Average power flux density per MHz in dBW/m²/MHz for a flat spectrum.
+///
+/// Divide total flux by the positive occupied width in **MHz**, then take
+/// the logarithm. This does not predict peak spectral density or integrate
+/// a specified regulatory measurement filter.
 #[must_use]
 pub fn pfd_per_mhz(eirp_dbw: f64, distance_m: f64, bandwidth_mhz: f64) -> f64 {
     power_flux_density_dbw_per_m2(eirp_dbw, distance_m) - 10.0 * bandwidth_mhz.log10()

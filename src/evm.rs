@@ -1,7 +1,12 @@
 //! Error Vector Magnitude (EVM) calculations.
 //!
 //! EVM quantifies the difference between measured and ideal constellation points.
-//! It's the standard metric for modem/transmitter quality.
+//! It is a metric for modem/transmitter quality.
+//!
+//! The SNR conversions assume error power is noise power and EVM is normalized
+//! to RMS reference-symbol amplitude, with matching measurement bandwidths.
+//! Distortion, phase error, or peak-constellation normalization can invalidate
+//! that interpretation. See `docs/physics-geometry-and-errors.md` for derivations.
 //!
 //! Key relationships:
 //! - EVM_rms = 1 / sqrt(SNR_linear)
@@ -27,6 +32,7 @@ pub fn evm_percent_from_snr_db(snr_db: f64) -> f64 {
 /// SNR in dB from EVM (rms, fractional).
 ///
 /// `SNR_dB = -20·log10(EVM_rms)`
+/// Use a positive fraction: 10% is 0.1. Zero gives positive infinity.
 #[doc(alias = "EVM")]
 #[doc(alias = "SNR")]
 #[must_use]
@@ -42,6 +48,8 @@ pub fn snr_db_from_evm_percent(evm_percent: f64) -> f64 {
 }
 
 /// EVM from SNR linear (not dB).
+///
+/// Supply a positive signal-to-noise power ratio.
 #[doc(alias = "EVM")]
 #[must_use]
 pub fn evm_from_snr_linear(snr_linear: f64) -> f64 {
@@ -51,6 +59,8 @@ pub fn evm_from_snr_linear(snr_linear: f64) -> f64 {
 /// Check if measured EVM meets a requirement.
 ///
 /// Returns `(pass, margin_db)` where margin is how much better than required.
+/// For positive percentages, margin is `20 * log10(required / measured)`;
+/// smaller measured error therefore gives a positive margin.
 #[doc(alias = "EVM")]
 #[must_use]
 pub fn evm_margin(measured_evm_percent: f64, required_evm_percent: f64) -> (bool, f64) {
@@ -118,11 +128,11 @@ mod tests {
 
     #[test]
     fn common_evm_values() {
-        // 64-QAM typically requires EVM < 8% → SNR > ~22 dB
+        // An example 8% EVM limit maps to about 22 dB under the noise model.
         let snr_64qam = snr_db_from_evm_percent(8.0);
         assert!(snr_64qam > 21.0 && snr_64qam < 23.0);
 
-        // 256-QAM typically requires EVM < 3.5% → SNR > ~29 dB
+        // An example 3.5% EVM limit maps to about 29 dB under the noise model.
         let snr_256qam = snr_db_from_evm_percent(3.5);
         assert!(snr_256qam > 28.0 && snr_256qam < 30.0);
     }

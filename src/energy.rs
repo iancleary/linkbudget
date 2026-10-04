@@ -1,6 +1,9 @@
 //! Energy-per-bit metrics: Eb/No, Es/No, Ec/No, C/No conversions.
 //!
-//! Reference: <https://www.dsprelated.com/showarticle/168.php>
+//! Derivations and bandwidth conventions: `docs/physics-communications.md`.
+//! Signal power and noise density must refer to the same receiver plane.
+//! These identities assume positive rates, `0 < code_rate <= 1`, and white
+//! noise integrated over the supplied equivalent noise bandwidth.
 //!
 //! ## Definitions
 //! - **C/No** (or C/N₀): Carrier power to noise spectral density ratio (dB·Hz)
@@ -22,6 +25,8 @@ use crate::modulation::Modulation;
 /// Convert SNR (C/N) in dB to C/No in dB·Hz.
 ///
 /// `C/No = SNR_dB + 10·log10(noise_bandwidth_hz)`
+/// Integrating white noise gives `N = N0 * Bn`, hence `C/N0 = (C/N) * Bn`.
+/// Use the noise bandwidth of this SNR, not an unrelated occupied bandwidth.
 #[doc(alias = "C/N")]
 #[doc(alias = "SNR")]
 #[must_use]
@@ -41,6 +46,7 @@ pub fn c_over_no_to_snr(c_over_no_db_hz: f64, noise_bandwidth_hz: f64) -> f64 {
 /// Convert C/No to Es/No given symbol rate.
 ///
 /// `Es/No = C/No - 10·log10(Rs)`
+/// In time `t`, divide the received energy `C*t` by `Rs*t` symbols: `Es = C/Rs`.
 #[must_use]
 pub fn c_over_no_to_es_over_no(c_over_no_db_hz: f64, symbol_rate: f64) -> f64 {
     c_over_no_db_hz - 10.0 * symbol_rate.log10()
@@ -51,6 +57,8 @@ pub fn c_over_no_to_es_over_no(c_over_no_db_hz: f64, symbol_rate: f64) -> f64 {
 /// With information bit rate `Rb = Rs × k × R`, where `Rs` is symbol rate,
 /// `k` is bits per symbol, and `R` is code rate:
 /// `Eb/No = Es/No - 10·log10(k) - 10·log10(R)`.
+/// The same transmitted energy serves `k*R` information bits per symbol, so
+/// `Eb = Es/(k*R)`. Subtracting `10*log10(R)` increases Eb/No when `R < 1`.
 #[doc(alias = "Eb/N0")]
 #[must_use]
 pub fn es_over_no_to_eb_over_no(
@@ -79,6 +87,8 @@ pub fn eb_over_no_to_es_over_no(
 /// Convert C/No directly to Eb/No given information bit rate.
 ///
 /// `Eb/No = C/No - 10·log10(Rb)`
+/// Dividing power by information bits per second gives energy per information
+/// bit. This identity does not assume any particular modulation or pulse shape.
 #[doc(alias = "Eb/N0")]
 #[must_use]
 pub fn c_over_no_to_eb_over_no(c_over_no_db_hz: f64, info_bit_rate_bps: f64) -> f64 {
@@ -101,6 +111,8 @@ pub fn es_over_no_to_ec_over_no(es_over_no_db: f64, modulation: &Modulation) -> 
 }
 
 /// Ec/No to Eb/No: `Eb/No = Ec/No - 10·log10(R)`.
+/// A rate-1/2 code assigns two transmitted coded-bit energies to each
+/// information bit: `Eb = 2*Ec`. This accounting is separate from coding gain.
 #[doc(alias = "Eb/N0")]
 #[must_use]
 pub fn ec_over_no_to_eb_over_no(ec_over_no_db: f64, code_rate: f64) -> f64 {

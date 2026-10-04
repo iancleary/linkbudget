@@ -1,7 +1,9 @@
 //! Slant range calculation for satellite links.
 //!
-//! This is a 1-D geometric calculation. For full 3-D accuracy, TLEs and
-//! ground-station coordinates would be needed.
+//! Uses a straight ray from a station on a spherical body's surface.
+//! See `docs/physics-geometry-and-errors.md` for the quadratic derivation.
+//! Orbit propagation and station coordinates are needed to predict elevation;
+//! this helper takes elevation as an input and does not model refraction.
 
 fn degrees_to_radians(degrees: f64) -> f64 {
     degrees * std::f64::consts::PI / 180.0
@@ -19,6 +21,10 @@ pub struct SlantRange {
 
 impl SlantRange {
     /// Calculate the slant range in metres.
+    ///
+    /// For body radius R, altitude h, and elevation e, the positive root of
+    /// `d² + 2R sin(e)d + R² - (R+h)² = 0` gives the forward ray distance.
+    /// Use R > 0, h >= 0, and elevation from 0° to 90° for a visible link.
     #[must_use]
     pub fn calculate(&self) -> f64 {
         let elevation_angle_radians: f64 = degrees_to_radians(self.elevation_angle_degrees);

@@ -9,6 +9,14 @@
 //! geometry, sensitivity, EVM, and quantization. Use `touchstone` for `.sNp`
 //! S-parameter files, `gainlineup` for ordered block-level gain/NF/P1dB/IP3
 //! lineups, and `rfconversions` for scalar RF conversions.
+//!
+//! # Physical model
+//!
+//! Signal power and noise temperature refer to the same receiver input plane.
+//! Keep receiver noise bandwidth, channel bandwidth, and information bit rate
+//! distinct: `SNR = C/(N0*Bn)`, `Eb/N0 = C/(N0*Rb)`, and ideal channel capacity
+//! is `Bch*log2(1 + C/(N0*Bch))`. The repository's `docs/README.md` indexes the
+//! derivations, worked examples, model limits, and regression tests.
 #![warn(missing_docs)]
 
 pub mod ber;
