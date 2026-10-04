@@ -44,9 +44,11 @@ check: fmt-check lint test doc-check package
 ci: check build
 
 # Cut a GitHub release for an explicit SemVer version.
+[positional-arguments]
 cut-release *args:
-    ./scripts/cut-release.sh {{args}}
+    ./scripts/cut-release.sh "$@"
 
-# run the crate
-dev:
-    cargo run
+# run the CLI against a link-budget configuration (generates and opens HTML)
+[positional-arguments]
+dev target="files/example.toml":
+    cargo run -- "$1"
