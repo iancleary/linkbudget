@@ -10,7 +10,7 @@ name = "linkbudget"
 readme = "README.md"
 repository = "https://github.com/iancleary/linkbudget"
 rust-version = "1.70"
-version = "0.7.0"
+version = "0.7.1"
 exclude = [".vscode/*"]
 categories = ["science", "simulation"]
 
