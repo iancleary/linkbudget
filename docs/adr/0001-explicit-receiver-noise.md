@@ -1,6 +1,6 @@
 # Explicit receiver noise and consistent channel capacity
 
-Status: accepted for the next minor release.
+Status: accepted for 0.7.0.
 
 Related: [issue #81](https://github.com/iancleary/linkbudget/issues/81) and the
 [Eb/No review in PR #80](https://github.com/iancleary/linkbudget/pull/80).
@@ -99,7 +99,7 @@ Use `system_noise_temperature_k()` for both noise power and G/T.
 Keep `calculate_noise_floor()` as an alias for total noise power. A total
 temperature cannot determine source-only noise.
 
-This is a breaking API change for the next minor release. Existing receiver
+This is a breaking API change in 0.7.0. Existing receiver
 literals must select an interpretation. The README has migration examples.
 Standard 290 K source fixtures keep their old noise power. Their corrected G/T
 decreases by NF in dB. The 150 K LNB and 25 K DSN examples explicitly specify

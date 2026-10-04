@@ -24,11 +24,11 @@ and margins are dB.
 
 ```toml
 [dependencies]
-linkbudget = "0.6.5"
+linkbudget = "0.7.0"
 ```
 
-The receiver API below targets the next minor release. For the published 0.6.5
-API, see the [0.6.5 README](https://github.com/iancleary/linkbudget/blob/v0.6.5/README.md).
+The receiver API below is available in 0.7.0. For the previous 0.6.5 API,
+see the [0.6.5 README](https://github.com/iancleary/linkbudget/blob/v0.6.5/README.md).
 
 ## Features
 
