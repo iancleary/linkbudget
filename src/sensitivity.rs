@@ -1,7 +1,9 @@
 //! Receiver sensitivity calculator.
 //!
-//! Computes the minimum detectable signal (MDS) for a target BER,
-//! given modulation, code rate, noise figure, and bandwidth.
+//! Estimates input power for a target BER at the 290 K noise-figure reference.
+//! The BER helpers use an uncoded threshold and ignore their code-rate argument;
+//! they do not predict the effect of an FEC decoder. Derivations and limitations
+//! are in `docs/physics-communications.md`.
 //!
 //! ## Roll-Off Factor (α)
 //!
@@ -18,32 +20,30 @@
 //! - α = 0.25 — some satellite systems
 //! - α = 0.35 — legacy DVB-S, many satcom modems
 //! - α = 0.50 — relaxed filtering, simpler implementation
-//! - α = 1.00 — maximum excess bandwidth, raised cosine becomes a pure cosine
+//! - α = 1.00 — maximum excess bandwidth, no flat part of the raised cosine
 //!
 //! ### Impact on sensitivity
 //!
-//! For a **matched filter** receiver (root-raised-cosine at TX and RX), the noise
-//! bandwidth equals the symbol rate Rs regardless of α. The matched filter captures
-//! signal energy optimally and rejects out-of-band noise, so α does not affect the
-//! ideal Eb/No-based sensitivity.
+//! For ideal root-raised-cosine TX/RX filters, equivalent noise bandwidth in the
+//! full RF-width convention is Rs regardless of α: the squared receive response
+//! is raised cosine, whose normalized area is Rs. More generally, substituting
+//! `SNR_required = (Eb/N0)_required * Rb / Bn` into `C_min = N0 * Bn * SNR_required`
+//! cancels Bn. Ideal sensitivity depends on required energy, not bandwidth labels.
 //!
-//! However, in practice α matters for:
-//! 1. **Channel bandwidth allocation** — wider α requires more spectrum
-//! 2. **Adjacent channel interference** — lower α = sharper rolloff = better isolation
-//! 3. **Non-ideal receivers** — if the receiver bandpass filter is set to the occupied
-//!    bandwidth (Rs × (1+α)) rather than using a matched filter, more noise enters,
-//!    degrading sensitivity by up to `10·log10(1+α)` dB.
+//! Roll-off still changes spectral allocation and practical filter design. This
+//! module's bandpass helper assumes a noise-width increase by `1 + α` at fixed
+//! useful decision signal and required decision SNR. It therefore adds
+//! `10*log10(1 + α)` dB as an explicit loss model. That value is neither a universal
+//! non-matched-receiver penalty nor a worst-case bound.
 //!
-//! This module provides both matched-filter sensitivity (ideal) and occupied-bandwidth
-//! sensitivity (practical/worst-case).
+//! Real mismatch can change signal energy, ISI, and noise together; those effects
+//! require a receiver model. Merely changing Bn in a consistent SNR conversion
+//! does not create the bandpass helper's penalty.
 //!
 //! ## References
 //!
-//! - [Raised-cosine filter — Wikipedia](https://en.wikipedia.org/wiki/Raised-cosine_filter)
-//! - [Root-raised-cosine filter — Wikipedia](https://en.wikipedia.org/wiki/Root-raised-cosine_filter)
-//! - [Understanding Eb/No, SNR, and Power Efficiency — Eric Jacobsen (dsprelated.com)](https://www.dsprelated.com/showarticle/168.php)
-//! - Proakis, J. (1995). *Digital Communications* (3rd ed.). McGraw-Hill. ISBN 0-07-113814-5.
-//! - Glover, I.; Grant, P. (2004). *Digital Communications* (2nd ed.). Pearson. ISBN 0-13-089399-4.
+//! - [MathWorks raised-cosine filtering](https://www.mathworks.com/help/comm/ug/raised-cosine-filtering.html)
+//! - [MathWorks energy-ratio conversions](https://www.mathworks.com/help/comm/ref/convertsnr.html)
 
 use crate::ber;
 use crate::modulation::Modulation;
@@ -51,6 +51,8 @@ use crate::modulation::Modulation;
 /// Thermal noise floor in dBm for a given bandwidth.
 ///
 /// `N = -174 dBm/Hz + 10·log10(BW_Hz) + NF_dB`
+/// This is input-referred `k*T0*F*Bn`, with a 290 K source and noise factor F.
+/// The constant rounds -173.98 dBm/Hz to -174; BW is equivalent noise bandwidth.
 #[must_use]
 pub fn noise_floor_dbm(bandwidth_hz: f64, noise_figure_db: f64) -> f64 {
     -174.0 + 10.0 * bandwidth_hz.log10() + noise_figure_db
@@ -58,9 +60,11 @@ pub fn noise_floor_dbm(bandwidth_hz: f64, noise_figure_db: f64) -> f64 {
 
 /// Receiver sensitivity in dBm assuming a **matched filter** (root-raised-cosine).
 ///
-/// With a matched filter, the noise bandwidth equals the symbol rate Rs,
-/// independent of the roll-off factor α. This gives the theoretical best
-/// sensitivity for a given modulation and code rate.
+/// Since `Eb/N0 = C/(Rb*N0)`, the required power is `N0*Rb*(Eb/N0)_required`.
+/// With a 290 K source, `N0 = k*T0*F`. Noise bandwidth cancels when required SNR
+/// and integrated noise use the same bandwidth. See `docs/physics-communications.md`.
+/// The current threshold is uncoded, so a nonunit code rate does not establish
+/// coded-link sensitivity; the function ignores this parameter.
 ///
 /// ```text
 /// Sensitivity = -174 + NF + Eb/No_required + 10·log10(Rb) + impl_loss
@@ -69,7 +73,7 @@ pub fn noise_floor_dbm(bandwidth_hz: f64, noise_figure_db: f64) -> f64 {
 /// # Arguments
 /// * `modulation` - Modulation scheme
 /// * `info_bit_rate_bps` - Information (payload) bit rate Rb
-/// * `code_rate` - FEC code rate R (e.g. 0.5 for rate-1/2)
+/// * `code_rate` - Accepted for compatibility but ignored; no FEC gain is applied
 /// * `noise_figure_db` - Receiver noise figure in dB
 /// * `target_ber` - Required BER (e.g. 1e-6)
 /// * `implementation_loss_db` - Additional loss margin (modem imperfections, etc.)
@@ -87,8 +91,8 @@ pub fn sensitivity_matched_filter_dbm(
 ) -> Option<f64> {
     let required_eb_no_db = ber::required_eb_no_db(target_ber, modulation)?;
 
-    // Sensitivity = kT (dBm/Hz) + NF + Eb/No + 10·log10(Rb) + impl_loss
-    // where kT = -174 dBm/Hz at 290 K
+    // C_min = k*T0*F*Rb*(Eb/N0)_required; -174 rounds k*T0 at 290 K.
+    // This uses an uncoded BER threshold; _code_rate does not model a decoder.
     let sensitivity = -174.0
         + noise_figure_db
         + required_eb_no_db
@@ -107,12 +111,12 @@ pub fn sensitivity_matched_filter_dbm(
     Some(sensitivity)
 }
 
-/// Receiver sensitivity in dBm for a **non-matched** (bandpass) receiver.
+/// Receiver sensitivity in dBm with an assumed bandpass noise-width penalty.
 ///
-/// When the receiver uses a simple bandpass filter set to the occupied bandwidth
-/// `Rs × (1 + α)` instead of a matched filter, extra noise enters proportional
-/// to the excess bandwidth. This degrades sensitivity by `10·log10(1 + α)` dB
-/// compared to the matched-filter case.
+/// Assumes noise increases in proportion to width `Rs × (1 + α)`, while useful
+/// decision signal and required decision SNR remain fixed. This adds the width
+/// ratio in dB. It is not a general mismatch calculation or a worst-case bound;
+/// changing bandwidth in a consistent energy/SNR conversion instead cancels.
 ///
 /// ```text
 /// Sensitivity = -174 + NF + Eb/No_required + 10·log10(Rb) + 10·log10(1+α) + impl_loss
@@ -121,7 +125,7 @@ pub fn sensitivity_matched_filter_dbm(
 /// # Arguments
 /// * `modulation` - Modulation scheme
 /// * `info_bit_rate_bps` - Information (payload) bit rate Rb
-/// * `code_rate` - FEC code rate R (e.g. 0.5 for rate-1/2)
+/// * `code_rate` - Passed to the matched-filter helper, which ignores it
 /// * `noise_figure_db` - Receiver noise figure in dB
 /// * `target_ber` - Required BER (e.g. 1e-6)
 /// * `implementation_loss_db` - Additional loss margin
@@ -148,7 +152,7 @@ pub fn sensitivity_bandpass_dbm(
         implementation_loss_db,
     )?;
 
-    // Excess noise from wider-than-matched bandwidth
+    // Assumed fixed-decision-SNR loss, not an automatic consequence of roll-off.
     let rolloff_penalty_db = 10.0 * (1.0 + rolloff).log10();
 
     Some(matched + rolloff_penalty_db)
@@ -178,10 +182,11 @@ pub fn sensitivity_dbm(
     )
 }
 
-/// Roll-off penalty in dB for a non-matched receiver.
+/// Assumed roll-off noise-width penalty in dB.
 ///
-/// This is the sensitivity degradation from using a bandpass filter of width
-/// `Rs × (1 + α)` instead of a matched filter of noise bandwidth Rs.
+/// Divides assumed noise widths `Rs × (1 + α)` and `Rs`, then takes 10*log10.
+/// Applying this to sensitivity assumes unchanged useful decision signal and
+/// required decision SNR; see [`sensitivity_bandpass_dbm`] for the model limits.
 ///
 /// ```text
 /// penalty = 10·log10(1 + α)
@@ -203,6 +208,8 @@ pub fn rolloff_penalty_db(rolloff: f64) -> f64 {
 /// Simplified sensitivity: just noise floor + required SNR.
 ///
 /// For quick estimates when you know the required SNR directly.
+/// The SNR threshold must use the same equivalent noise bandwidth as the noise
+/// floor. A power threshold is noise power multiplied by required linear SNR.
 #[must_use]
 pub fn sensitivity_from_snr_dbm(
     bandwidth_hz: f64,

@@ -14,7 +14,14 @@
 //! required_Eb/No_coded = required_Eb/No_uncoded - coding_gain
 //! ```
 //!
-//! ## Common Coding Gains (at BER = 1e-5)
+//! ## Assumed Coding Gains (nominally at BER = 1e-5)
+//!
+//! These are heuristic planning constants, not results from an implemented
+//! decoder or a traced measurement data set. The references below do not prove
+//! the table's numbers for every code, block length, decoder, or modulation.
+//! `CodedModulation` shifts the entire uncoded BER curve by this constant gain;
+//! real coded curves can have different slopes and error floors. See
+//! `docs/physics-communications.md` for the accounting proof and model limits.
 //!
 //! | Code                | Rate | Coding Gain |
 //! |---------------------|------|-------------|
@@ -62,7 +69,7 @@ pub const CODING_GAIN_LDPC_R910: f64 = 5.0;
 // FEC type enum
 // ---------------------------------------------------------------------------
 
-/// Common FEC code families with typical coding gains
+/// Common FEC code families with assumed coding gains; no decoder is modeled.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum FecCode {
     /// No FEC (uncoded)
@@ -107,7 +114,9 @@ impl FecCode {
     /// Approximate coding gain in dB at BER ≈ 1e-5.
     ///
     /// For convolutional, turbo, and LDPC codes, the gain is interpolated
-    /// between known rate/gain pairs. For custom codes, the explicit gain is used.
+    /// between the stored heuristic rate/gain pairs and clamped at endpoints.
+    /// For custom codes, the explicit gain is used. Interpolation in rate is a
+    /// planning convention, not a derivation of decoder performance.
     #[must_use]
     pub fn coding_gain_db(&self) -> f64 {
         match self {
@@ -173,7 +182,8 @@ impl FecCode {
 }
 
 /// Linear interpolation of coding gain between two rate/gain points.
-/// Higher code rate → less redundancy → less coding gain.
+/// The supplied table assigns less gain to higher rates. Clamping and linearity
+/// describe that table, not a universal relation between rate and coding gain.
 fn lerp_gain(rate: f64, r1: f64, g1: f64, r2: f64, g2: f64) -> f64 {
     if (r2 - r1).abs() < 1e-10 {
         return g1;
@@ -241,6 +251,9 @@ impl CodedModulation {
     }
 
     /// Throughput in bits/s for a given channel bandwidth.
+    /// Assumes the ideal symbol rate equals this bandwidth: `Rb = BW*k*R`.
+    /// For raised-cosine occupied bandwidth, divide by `1 + alpha` first.
+    /// Pilots, framing, and guard bands are not modeled.
     #[must_use]
     pub fn throughput_bps(&self, bandwidth_hz: f64) -> f64 {
         bandwidth_hz * self.spectral_efficiency()
@@ -251,6 +264,8 @@ impl CodedModulation {
     /// ```text
     /// required_Eb/No = uncoded_required - coding_gain
     /// ```
+    /// This follows from the definition of gain at a fixed target BER. The
+    /// assumption is that the stored gain remains valid for the requested BER.
     #[doc(alias = "Eb/N0")]
     #[must_use]
     pub fn required_eb_no_db(&self, target_ber: f64) -> Option<f64> {
@@ -260,7 +275,9 @@ impl CodedModulation {
 
     /// BER for a given Eb/No (dB), accounting for coding gain.
     ///
-    /// The effective Eb/No seen by the decoder is increased by the coding gain.
+    /// Evaluates the uncoded curve at `Eb/No + coding_gain`. This is a horizontal
+    /// curve shift, not a simulated decoder. Eb/No uses information-bit energy;
+    /// code-rate accounting and the assumed performance gain are separate.
     #[doc(alias = "BER")]
     #[must_use]
     pub fn ber_from_db(&self, eb_no_db: f64) -> f64 {
@@ -316,12 +333,15 @@ pub fn dvbs2_8psk_r23() -> CodedModulation {
 }
 
 /// DVB-S2 16-APSK rate 3/4 (LDPC) — modeled as 16-QAM for BER approximation.
+/// The QAM substitution does not describe APSK ring geometry or a DVB-S2 decoder.
 #[must_use]
 pub fn dvbs2_16apsk_r34() -> CodedModulation {
     CodedModulation::new(Modulation::Mqam(16), FecCode::Ldpc { rate: 0.75 })
 }
 
 /// DVB-S2 32-APSK rate 5/6 (LDPC) — modeled as 32-QAM for BER approximation.
+/// This preset also evaluates a square-QAM formula at the non-square order 32.
+/// Its BER is outside that formula's derivation, not a validated APSK prediction.
 #[must_use]
 pub fn dvbs2_32apsk_r56() -> CodedModulation {
     CodedModulation::new(Modulation::Mqam(32), FecCode::Ldpc { rate: 5.0 / 6.0 })

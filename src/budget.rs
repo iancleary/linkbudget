@@ -1,4 +1,9 @@
 //! End-to-end link budget calculation.
+//!
+//! `docs/physics-rf-link.md` derives power spreading, kT noise, G/T, and
+//! channel capacity. `docs/physics-communications.md` derives bit energy and
+//! BER. Keep the common receiver input plane and the distinct bandwidths in
+//! those guides when composing the scalar calculations here.
 
 use crate::ber;
 use crate::coding::CodedModulation;
@@ -43,6 +48,9 @@ impl LinkBudget {
     }
 
     /// Received power at the receiver input in dBm.
+    ///
+    /// Friis gives `C = P_tx*G_tx*G_rx/(L_fs*L_extra)` in linear units.
+    /// Its logarithm adds antenna gains and subtracts path losses.
     #[must_use]
     pub fn pin_at_receiver(&self) -> f64 {
         let path_loss_in_db = self.path_loss();
@@ -51,6 +59,9 @@ impl LinkBudget {
     }
 
     /// SNR at the receiver in dB.
+    ///
+    /// This is `C/(k*T_sys*B_noise)`, integrated over receiver noise bandwidth.
+    /// It is not automatically the SNR over the channel bandwidth.
     #[doc(alias = "SNR")]
     #[must_use]
     pub fn snr(&self) -> f64 {
@@ -86,6 +97,9 @@ impl LinkBudget {
     /// C/No in dB·Hz from the link budget SNR and noise bandwidth.
     ///
     /// `C/No = SNR(dB) + 10·log10(noise_bandwidth)`
+    /// This follows by multiplying `C/(N0*B_noise)` by `B_noise`; the linear
+    /// result has units of Hz. It is invariant to noise bandwidth when the
+    /// signal power and flat noise density are fixed.
     #[doc(alias = "C/N")]
     #[must_use]
     pub fn c_over_no(&self) -> f64 {
@@ -96,6 +110,8 @@ impl LinkBudget {
     ///
     /// Assumes the channel bandwidth is the symbol rate (zero roll-off).
     /// Receiver noise bandwidth may differ from this channel bandwidth.
+    /// During time `t`, signal energy is `C*t` and information bits are
+    /// `Rb*t`, so `Eb = C/Rb` with `Rb = Rs*log2(M)`.
     #[doc(alias = "Eb/N0")]
     #[must_use]
     pub fn eb_no_db(&self, modulation: &Modulation) -> f64 {
@@ -107,6 +123,9 @@ impl LinkBudget {
     ///
     /// Assumes the channel bandwidth is the symbol rate (zero roll-off).
     /// Receiver noise bandwidth may differ from this channel bandwidth.
+    /// Each symbol carries `r*log2(M)` information bits. Thus
+    /// `Eb/N0 = (C/N0)/(Rs*r*log2(M))`; code rate changes energy per information
+    /// bit at fixed symbol rate, separately from any assumed decoder gain.
     #[doc(alias = "Eb/N0")]
     #[must_use]
     pub fn eb_no_coded_db(&self, coded_mod: &CodedModulation) -> f64 {
@@ -123,6 +142,9 @@ impl LinkBudget {
     }
 
     /// BER for a coded modulation scheme at the link's Eb/No.
+    ///
+    /// Uses the coding module's approximate horizontal shift of an uncoded
+    /// BER curve. This is not a decoder simulation or a guaranteed coded BER.
     #[doc(alias = "BER")]
     #[must_use]
     pub fn ber_coded(&self, coded_mod: &CodedModulation) -> f64 {
@@ -162,7 +184,11 @@ impl LinkBudget {
         coded_mod.link_margin_db(actual, target_ber)
     }
 
-    /// Achievable throughput in bits/s for a coded modulation scheme.
+    /// Configured information rate in bits/s for a coded modulation scheme.
+    ///
+    /// Counts `Rs*r*log2(M)` with `Rs = self.bandwidth` (zero roll-off).
+    /// This is a rate calculation; it does not establish that the link meets
+    /// a target BER, channel-capacity bound, or application overhead budget.
     #[must_use]
     pub fn throughput_bps(&self, coded_mod: &CodedModulation) -> f64 {
         coded_mod.throughput_bps(self.bandwidth)

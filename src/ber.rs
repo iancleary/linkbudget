@@ -4,13 +4,18 @@
 //! required Eb/No for a target BER.
 //!
 //! All Eb/No values are in **linear** (not dB) unless suffixed with `_db`.
+//! Assume coherent detection in AWGN, correct synchronization, and no residual
+//! ISI. Higher-order curves are nearest-neighbor approximations, not exact BER.
+//! See `docs/physics-communications.md` for Gaussian-decision derivations,
+//! constellation restrictions, and numerical accuracy limits.
 
 use std::f64::consts::PI;
 
 use crate::modulation::Modulation;
 
 /// Complementary error function approximation (erfc).
-/// Uses Abramowitz & Stegun approximation 7.1.26, max error ~1.5e-7.
+/// Uses Abramowitz & Stegun approximation 7.1.26, max absolute error ~1.5e-7.
+/// An absolute bound does not ensure small relative error in a very small tail.
 #[must_use]
 pub fn erfc(x: f64) -> f64 {
     if x < 0.0 {
@@ -29,9 +34,12 @@ pub fn q_function(x: f64) -> f64 {
     0.5 * erfc(x / std::f64::consts::SQRT_2)
 }
 
-/// BER for BPSK/QPSK (they have the same BER vs Eb/No).
+/// Ideal coherent BPSK and Gray-QPSK BER in AWGN.
 ///
 /// BER = Q(sqrt(2 * Eb/No))
+/// A unit-energy matched filter yields means ±sqrt(Eb) and noise variance N0/2.
+/// Crossing the zero threshold is therefore this Gaussian tail. Gray QPSK has
+/// two orthogonal decisions with the same energy per bit.
 #[doc(alias = "BER")]
 #[must_use]
 pub fn ber_bpsk(eb_no_linear: f64) -> f64 {
@@ -41,6 +49,10 @@ pub fn ber_bpsk(eb_no_linear: f64) -> f64 {
 /// BER for M-PSK (M >= 4, Gray coded).
 ///
 /// BER ≈ (2/k) * Q(sqrt(2*k*Eb/No) * sin(π/M)), where k = log2(M).
+/// Each adjacent decision boundary is sqrt(Es)*sin(π/M) from the symbol.
+/// Count two boundary crossings and one Gray-bit error per nearest neighbor.
+/// The higher-order approximation is useful at low BER; BPSK is handled exactly
+/// and M=4 reduces to the ideal QPSK bit curve. Orders are not validated.
 #[doc(alias = "BER")]
 #[must_use]
 pub fn ber_mpsk(eb_no_linear: f64, m: u32) -> f64 {
@@ -52,10 +64,14 @@ pub fn ber_mpsk(eb_no_linear: f64, m: u32) -> f64 {
     (2.0 / k) * q_function((2.0 * k * eb_no_linear).sqrt() * sin_term)
 }
 
-/// BER for rectangular M-QAM (Gray coded, M = 4, 16, 64, 256, …).
+/// Approximate BER for square M-QAM (Gray coded, M = 4, 16, 64, 256, …).
 ///
 /// BER ≈ (4/k) * (1 - 1/√M) * Q(sqrt(3*k*Eb/No / (M-1))).
 /// For M=4 (QPSK), this reduces to the QPSK formula.
+/// With axis spacing 2d, averaging squared levels gives Es = 2*d²*(M-1)/3.
+/// The coefficient counts nearest boundaries; dividing by k assumes one bit
+/// error per adjacent decision. Non-square orders such as 32 are evaluated but
+/// lie outside this derivation. See `docs/physics-communications.md`.
 #[doc(alias = "BER")]
 #[must_use]
 pub fn ber_mqam(eb_no_linear: f64, m: u32) -> f64 {
@@ -78,7 +94,8 @@ pub fn ber(eb_no_linear: f64, modulation: &Modulation) -> f64 {
         Modulation::Qpsk => ber_bpsk(eb_no_linear),
         Modulation::Mpsk(m) => ber_mpsk(eb_no_linear, *m),
         Modulation::Mqam(m) => ber_mqam(eb_no_linear, *m),
-        Modulation::Msk => ber_bpsk(eb_no_linear), // MSK has same BER as BPSK
+        // This selects the coherent precoded-MSK model, not every MSK detector.
+        Modulation::Msk => ber_bpsk(eb_no_linear),
     }
 }
 
@@ -109,6 +126,9 @@ pub fn link_margin_db(
 ///
 /// Returns `None` for a nonfinite or nonpositive target, nonfinite BER at a
 /// search endpoint, or a target outside the BER values reached in [−5, 50] dB.
+/// The stopping residual is relative BER error below 1e-6 against this module's
+/// forward approximation, with at most 100 iterations. It does not certify the
+/// physical model, a constellation's validity, or Gaussian-tail accuracy.
 #[doc(alias = "Eb/N0")]
 #[must_use]
 pub fn required_eb_no_db(target_ber: f64, modulation: &Modulation) -> Option<f64> {

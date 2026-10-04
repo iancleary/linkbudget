@@ -1,8 +1,14 @@
 //! Doppler shift calculations for satellite communications.
+//!
+//! Uses the first-order, one-way relation `Δf = f * v_closing / c`.
+//! See `docs/physics-geometry-and-errors.md` for the range-rate sign convention
+//! and the limits of the circular-orbit projection helper.
 
 /// Doppler shift in Hz for a given transmitted frequency and radial velocity.
 ///
 /// `radial_velocity_m_s`: positive = approaching, negative = receding.
+/// This is minus the rate of change of separation, not total orbital speed.
+/// Supply a positive carrier frequency in Hz and relative speeds much below c.
 #[doc(alias = "Doppler")]
 #[must_use]
 pub fn doppler_shift_hz(frequency_hz: f64, radial_velocity_m_s: f64) -> f64 {
@@ -16,10 +22,13 @@ pub fn doppler_received_frequency(frequency_hz: f64, radial_velocity_m_s: f64) -
     frequency_hz + doppler_shift_hz(frequency_hz, radial_velocity_m_s)
 }
 
-/// Maximum radial velocity for a circular orbit at a given elevation angle.
+/// Approximate radial-speed magnitude using `orbital_speed * cos(elevation)`.
 ///
-/// At horizon (0° elevation), radial velocity ≈ orbital velocity.
-/// At zenith (90° elevation), radial velocity ≈ 0.
+/// For nonnegative speed and elevations from 0° to 90°, this assumes motion
+/// parallel to the station's local horizon and toward the satellite's azimuth.
+/// It returns the supplied speed at the horizon and approximately zero at zenith.
+/// It omits spherical geometry, ground-station motion, and the approach/recede
+/// sign; it is not an exact maximum for a spherical circular orbit.
 #[doc(alias = "Doppler")]
 #[must_use]
 pub fn max_radial_velocity_circular(orbital_speed_m_s: f64, elevation_angle_degrees: f64) -> f64 {

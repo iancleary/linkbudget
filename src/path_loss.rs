@@ -3,10 +3,18 @@
 //! If you are modeling orbital mechanics, you may calculate slant range yourself
 //! and pass in the distance here.
 //!
-//! Reference: <https://www.dsprelated.com/showarticle/62.php>
+//! Power flux spreads as `EIRP/(4*pi*d^2)`. A matched receive antenna has
+//! effective aperture `G_rx*lambda^2/(4*pi)`. Their product gives the Friis
+//! received-power equation and the isotropic loss `(4*pi*d/lambda)^2`.
+//! See `docs/physics-rf-link.md` for the derivation and test mapping.
 //!
-//! The often-mentioned "frequency-dependent propagation loss" of radio waves is
-//! really an antenna effect and not a wave propagation effect.
+//! At fixed EIRP, vacuum power flux has no frequency term. The wavelength
+//! dependence of FSPL includes the receive aperture at a specified antenna
+//! gain. A fixed physical aperture instead has frequency-dependent gain.
+//! Absorption and other losses outside this free-space model can also depend
+//! on frequency.
+//!
+//! Reference: [ITU-R P.525-5, equations 3–5](https://www.itu.int/dms_pubrec/itu-r/rec/p/R-REC-P.525-5-202411-I%21%21PDF-E.pdf).
 
 use rfconversions::frequency::frequency_to_wavelength;
 use std::f64::consts::PI;
@@ -23,6 +31,10 @@ pub struct PathLoss {
 
 impl PathLoss {
     /// Calculate FSPL in dB.
+    ///
+    /// Uses `lambda = c/f` and `10*log10((4*pi*d/lambda)^2)`.
+    /// Frequency and distance must be positive, with antennas in the far field.
+    /// Polarization, obstruction, and atmospheric losses are not included.
     #[doc(alias = "FSPL")]
     #[must_use]
     pub fn calculate(&self) -> f64 {
@@ -47,7 +59,7 @@ mod tests {
 
         // 60 GHz Wi-Fi, known as WiGig (IEEE 802.11ad/ay)
         let frequency: f64 = 60.0 * base.powf(9.0);
-        let distance: f64 = 5.0 * base.powf(1.0); // 5 m
+        let distance: f64 = 5.0 * base.powf(1.0); // 50 m
 
         let free_space_path_loss: f64 = PathLoss {
             frequency,

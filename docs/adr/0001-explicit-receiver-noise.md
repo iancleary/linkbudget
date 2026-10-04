@@ -2,6 +2,10 @@
 
 Status: accepted for 0.7.0.
 
+For the general derivation and a worked link, see
+[RF power, noise, and capacity](../physics-rf-link.md). This record explains
+the API decision and compatibility consequences.
+
 Related: [issue #81](https://github.com/iancleary/linkbudget/issues/81) and the
 [Eb/No review in PR #80](https://github.com/iancleary/linkbudget/pull/80).
 

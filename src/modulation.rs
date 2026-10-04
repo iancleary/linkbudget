@@ -2,6 +2,8 @@
 //!
 //! Defines modulation schemes (BPSK, QPSK, M-PSK, M-QAM) and provides
 //! conversions between symbol rate, bit rate, and bandwidth.
+//! Derivations and the distinction between noise and occupied bandwidth are in
+//! `docs/physics-communications.md`. Enum construction does not validate orders.
 
 /// Supported modulation types
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -32,6 +34,8 @@ impl Modulation {
     }
 
     /// Bits per symbol: k = log2(M).
+    /// Ordinary binary labels require power-of-two M; arbitrary enum values are
+    /// accepted numerically without establishing a realizable bit mapping.
     #[must_use]
     pub fn bits_per_symbol(&self) -> f64 {
         (self.order() as f64).log2()
@@ -40,6 +44,7 @@ impl Modulation {
     /// Symbol rate from information bit rate and code rate.
     ///
     /// `Rs = Rb / (k * R)` where R is FEC code rate.
+    /// A symbol carries `k` coded bits but only `k*R` information bits.
     #[must_use]
     pub fn symbol_rate(&self, info_bit_rate_bps: f64, code_rate: f64) -> f64 {
         let coded_bit_rate = info_bit_rate_bps / code_rate;
@@ -49,14 +54,19 @@ impl Modulation {
     /// Occupied bandwidth from symbol rate and roll-off factor (alpha).
     ///
     /// `BW = Rs * (1 + alpha)` for raised-cosine pulse shaping.
+    /// This is full RF spectral support, twice the one-sided lowpass width.
+    /// The same formula is applied to MSK; it does not derive an MSK spectrum.
     #[must_use]
     pub fn occupied_bandwidth(&self, symbol_rate: f64, rolloff: f64) -> f64 {
         symbol_rate * (1.0 + rolloff)
     }
 
-    /// Null-to-null bandwidth (no pulse shaping).
+    /// Null-to-null bandwidth for rectangular linear-modulation pulses or MSK.
     ///
-    /// For most schemes this is 2 × Rs; for MSK it's 1.5 × Rs.
+    /// Rectangular pulses have sinc zeros at offsets ±Rs, giving 2 × Rs.
+    /// Binary MSK's half-sinusoidal pulses instead give true first zeros at
+    /// ±0.75 × Rs, hence 1.5 × Rs. Neither width includes all sidelobe power.
+    /// See `docs/physics-communications.md` for the MSK spectral derivation.
     #[must_use]
     pub fn null_bandwidth(&self, symbol_rate: f64) -> f64 {
         match self {
@@ -68,6 +78,8 @@ impl Modulation {
     /// Spectral efficiency in bits/s/Hz (ideal, no roll-off).
     ///
     /// `eta = k * R`
+    /// This uses the ideal allocation `BW = Rs`. Relative to raised-cosine
+    /// occupied bandwidth, divide this result by `1 + alpha`.
     #[must_use]
     pub fn spectral_efficiency(&self, code_rate: f64) -> f64 {
         self.bits_per_symbol() * code_rate

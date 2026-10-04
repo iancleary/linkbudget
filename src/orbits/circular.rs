@@ -1,8 +1,14 @@
 //! Circular orbit speed and period calculations.
+//!
+//! Assumes Newtonian gravity, a spherical central body, and negligible satellite
+//! mass. See `docs/physics-geometry-and-errors.md` for the force-balance derivation.
 
 use crate::constants::GRAVITATIONAL_CONSTANT;
 
 /// Orbital speed for a circular orbit (m/s).
+///
+/// `GMm/r² = mv²/r` gives `v = sqrt(GM/r)`. Supply positive central mass
+/// in kg and radius in metres measured from the body's centre, not its surface.
 #[doc(alias = "orbit")]
 #[must_use]
 pub fn calculate_circular_orbit_speed(mass_of_body: f64, distance_from_center_of_body: f64) -> f64 {
@@ -13,6 +19,9 @@ pub fn calculate_circular_orbit_speed(mass_of_body: f64, distance_from_center_of
 }
 
 /// Orbital period for a circular orbit (seconds).
+///
+/// Circumference divided by speed gives `T = 2πr/v = 2π * sqrt(r³/(GM))`.
+/// Supply positive mass in kg and distance from the body's centre in metres.
 #[doc(alias = "orbit")]
 #[must_use]
 pub fn calculate_circular_orbit_period(

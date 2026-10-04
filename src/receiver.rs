@@ -1,4 +1,9 @@
 //! Receiver model for link budget calculations.
+//!
+//! Matched thermal noise has power `k*T*Bn`. Independent source and
+//! receiver-added noise powers therefore add as equivalent temperatures.
+//! `docs/physics-rf-link.md` derives this result, the 290 K noise-figure
+//! conversion, and agreement between G/T and the received-power link equation.
 
 use rfconversions::noise::{noise_power_from_bandwidth, noise_temperature_from_noise_figure};
 use rfconversions::power::watts_to_dbm;
@@ -86,6 +91,9 @@ impl Receiver {
     }
 
     /// Total input-referred noise power in dBm: `k * T_sys * B_noise`.
+    ///
+    /// Integrating flat density `N0 = k*T_sys` over equivalent noise bandwidth
+    /// gives watts. Conversion to dBm takes `10*log10(N / 1 mW)`.
     #[must_use]
     pub fn calculate_noise_power(&self) -> f64 {
         watts_to_dbm(noise_power_from_bandwidth(
@@ -95,6 +103,10 @@ impl Receiver {
     }
 
     /// G/T (gain-to-noise-temperature ratio) in dB/K.
+    ///
+    /// Dividing linear antenna gain by total temperature becomes
+    /// `gain_dBi - 10*log10(T_sys / 1 K)`. Using the same total temperature
+    /// as noise power makes the G/T and C/No link equations agree.
     #[doc(alias = "G/T")]
     #[must_use]
     pub fn g_over_t_db(&self) -> f64 {
@@ -102,6 +114,9 @@ impl Receiver {
     }
 
     /// Signal-to-noise ratio in dB for a given input power (dBm).
+    ///
+    /// Subtracting two dBm values forms `10*log10(C/N)`. The input is total
+    /// captured signal power at the same reference plane as the noise model.
     #[doc(alias = "SNR")]
     #[must_use]
     pub fn calculate_snr(&self, input_power: f64) -> f64 {
