@@ -1,6 +1,89 @@
 //! Public workflows anchored to published data or independent analytic values.
 
+use linkbudget::atmosphere::sky_noise_temperature_k;
 use linkbudget::dvbs2::{self, Mode};
+use linkbudget::{LinkBudget, ModelError, PathLoss, Receiver, ReceiverNoise, Transmitter};
+
+#[test]
+fn atmospheric_emission_and_attenuation_reduce_downlink_snr_together() {
+    let downlink = |atmospheric_attenuation_db| LinkBudget {
+        name: "Atmospheric emission: Ka-band LEO downlink",
+        bandwidth: 20e6,
+        transmitter: Transmitter {
+            output_power: 10.0,
+            gain: 35.0,
+            bandwidth: 20e6,
+        },
+        receiver: Receiver {
+            gain: 40.0,
+            // Ideal sky-filled beam; no spillover or feed loss in this scenario.
+            noise: ReceiverNoise::SourceAndNoiseFigure {
+                source_temperature_k: sky_noise_temperature_k(atmospheric_attenuation_db, 275.0)
+                    .unwrap(),
+                noise_figure_db: 1.0,
+            },
+            bandwidth: 20e6,
+        },
+        path_loss: PathLoss {
+            frequency: 20e9,
+            distance: 550e3,
+        },
+        frequency_dependent_loss: Some(atmospheric_attenuation_db),
+    };
+
+    // Independent 50-digit decimal evaluation of P.618-14 eq. 69, Friis
+    // (c = 299792458 m/s), and k*T*B (k = 1.380649e-23 J/K).
+    let clear = downlink(0.0);
+    let attenuated = downlink(3.0);
+    for (budget, expected_temperature_k, expected_power_dbm, expected_noise_dbm, expected_snr_db) in [
+        (
+            &clear,
+            77.788_369_420_308_49,
+            -88.275_636_925_047_87,
+            -106.679_720_536_420_24,
+            18.404_083_611_372_366,
+        ),
+        (
+            &attenuated,
+            213.615_085_703_602_25,
+            -91.275_636_925_047_87,
+            -102.292_548_019_226,
+            11.016_911_094_178_127,
+        ),
+    ] {
+        assert!(
+            (budget.receiver.system_noise_temperature_k() - expected_temperature_k).abs() < 1e-10
+        );
+        assert!((budget.pin_at_receiver() - expected_power_dbm).abs() < 1e-10);
+        assert!((budget.receiver.calculate_noise_power() - expected_noise_dbm).abs() < 1e-10);
+        assert!((budget.snr() - expected_snr_db).abs() < 1e-10);
+    }
+    assert!((sky_noise_temperature_k(3.0, 275.0).unwrap() - 138.526_716_283_293_76).abs() < 1e-10);
+    assert!((clear.snr() - attenuated.snr() - 7.387_172_517_194_239).abs() < 1e-10);
+    assert!(clear.snr() - attenuated.snr() > 3.0);
+}
+
+#[test]
+fn atmospheric_sky_brightness_boundaries_and_invalid_inputs() {
+    assert_eq!(sky_noise_temperature_k(0.0, 275.0).unwrap(), 2.7);
+    assert_eq!(sky_noise_temperature_k(1e6, 275.0).unwrap(), 275.0);
+    assert_eq!(sky_noise_temperature_k(f64::MAX, 275.0).unwrap(), 275.0);
+    assert!(
+        (sky_noise_temperature_k(1e-12, 275.0).unwrap() - 2.700_000_000_062_699_4).abs() < 1e-15
+    );
+    for attenuation_db in [-1.0, f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        assert_eq!(
+            sky_noise_temperature_k(attenuation_db, 275.0),
+            Err(ModelError::InvalidInput("atmospheric_attenuation_db"))
+        );
+    }
+    for temperature_k in [0.0, -1.0, f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        assert_eq!(
+            sky_noise_temperature_k(3.0, temperature_k),
+            Err(ModelError::InvalidInput("mean_radiating_temperature_k"))
+        );
+    }
+}
 
 #[test]
 fn dvbs2_normal_frame_selection_and_rate_from_explicit_allocation() {

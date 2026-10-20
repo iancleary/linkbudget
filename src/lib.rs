@@ -19,6 +19,7 @@
 //! derivations, worked examples, model limits, and regression tests.
 #![warn(missing_docs)]
 
+pub mod atmosphere;
 pub mod ber;
 mod budget;
 #[allow(missing_docs, dead_code)]
