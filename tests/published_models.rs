@@ -2,9 +2,145 @@
 
 use linkbudget::atmosphere::sky_noise_temperature_k;
 use linkbudget::dvbs2::{self, Mode};
+use linkbudget::phy::awgn_finite_blocklength_rate_bits_per_complex_use as finite_rate;
 use linkbudget::rain::{specific_attenuation_db_per_km, RainPath};
 use linkbudget::{ber, Modulation};
 use linkbudget::{LinkBudget, ModelError, PathLoss, Receiver, ReceiverNoise, Transmitter};
+
+#[test]
+fn finite_blocklength_rates_match_independent_decimal_references() {
+    // Skill-owned finite_blocklength_references.py: 80/120-digit Decimal,
+    // Machin pi, erf Taylor series, and independent inverse-Q bisection.
+    for (rho, n, epsilon, expected) in [
+        (1.0, 1024, 0.001, 0.879_344_723_070_991_3),
+        (1.0, 1375, 0.001, 0.895_877_412_977_917_3),
+        (0.1, 1000, 0.1, 0.113_146_311_160_443_49),
+        (10.0, 200, 1e-6, 2.976_523_994_821_674_6),
+        (100.0, 100, 1e-9, 5.792_953_252_655_331),
+        (1.0, 100, 0.1, 0.839_881_594_681_7),
+    ] {
+        let actual = finite_rate(rho, n, epsilon).unwrap();
+        assert!(
+            (actual - expected).abs() < 2e-14,
+            "rho={rho}, n={n}, epsilon={epsilon}: {actual}"
+        );
+    }
+
+    // PPV Table I: real AWGN at 0 dB, epsilon=.001, n_real≈2750 for .9 C.
+    // Two real uses form one complex use, so n_complex=1375 and C_complex=1.
+    // The table uses a logarithmic correction, deliberately absent from the API.
+    let second_order = finite_rate(1.0, 1375, 0.001).unwrap();
+    let source_corrected = second_order + 2750_f64.log2() / 2750.0;
+    assert!((source_corrected - 0.900_032_036_942_753_5).abs() < 2e-14);
+    assert!((source_corrected - 0.9).abs() < 4e-5);
+    assert!(second_order < 0.9);
+}
+
+#[test]
+fn finite_blocklength_planning_uses_channel_snr_and_explicit_complex_use_rate() {
+    let mut budget = LinkBudget {
+        name: "Finite-blocklength ideal AWGN planning",
+        bandwidth: 20e6, // channel bandwidth, not receiver noise bandwidth
+        transmitter: Transmitter {
+            output_power: 10.0,
+            gain: 35.0,
+            bandwidth: 20e6,
+        },
+        receiver: Receiver {
+            gain: 40.0,
+            noise: ReceiverNoise::SystemTemperature {
+                temperature_k: 200.0,
+            },
+            bandwidth: 30e6,
+        },
+        path_loss: PathLoss {
+            frequency: 20e9,
+            distance: 550e3,
+        },
+        frequency_dependent_loss: Some(3.0),
+    };
+    let plan = |budget: &LinkBudget| {
+        let channel_snr_db =
+            linkbudget::energy::c_over_no_to_snr(budget.c_over_no(), budget.bandwidth);
+        let rho = 10_f64.powf(channel_snr_db / 10.0);
+        finite_rate(rho, 1024, 0.001).unwrap()
+    };
+    let rho = 10_f64
+        .powf(linkbudget::energy::c_over_no_to_snr(budget.c_over_no(), budget.bandwidth) / 10.0);
+    assert!((budget.c_over_no() - 84.313_230_291_529_98).abs() < 1e-10);
+    assert!((rho - 13.498_733_815_845_334).abs() < 1e-11);
+    assert!((budget.phy_rate().snr - rho).abs() < 1e-12);
+    let rate = plan(&budget);
+    assert!((rate - 3.718_866_070_338_616).abs() < 1e-12);
+    let shannon_bps = budget.phy_rate().bps();
+    assert!((shannon_bps - 77_157_100.182_051_17).abs() < 1e-6);
+    // An explicit ideal Nyquist model supplies 20 million complex uses/s.
+    // This multiplication is a planning quantity, not measured modem throughput.
+    let complex_uses_per_second = 20e6;
+    let planned_bits_per_second = rate * complex_uses_per_second;
+    let block_duration_s = 1024.0 / complex_uses_per_second;
+    assert!((planned_bits_per_second - 74_377_321.406_772_32).abs() < 1e-6);
+    assert!((block_duration_s - 51.2e-6).abs() < 1e-18);
+    assert!(planned_bits_per_second < shannon_bps);
+    assert!((finite_rate(budget.snr_linear(), 1024, 0.001).unwrap() - rate).abs() > 0.4);
+    // Changing only noise integration bandwidth cannot change channel planning.
+    budget.receiver.bandwidth = 60e6;
+    assert!((plan(&budget) - rate).abs() < 1e-12);
+    assert!((budget.phy_rate().bps() - shannon_bps).abs() < 1e-6);
+}
+
+#[test]
+fn finite_blocklength_guardrails_and_nonpositive_rates_are_explicit() {
+    for rho in [0.0, -1.0, f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        assert_eq!(
+            finite_rate(rho, 1024, 0.001),
+            Err(ModelError::InvalidInput("snr_linear"))
+        );
+    }
+    assert_eq!(
+        finite_rate(1.0, 0, 0.001),
+        Err(ModelError::InvalidInput("blocklength_complex_uses"))
+    );
+    for epsilon in [
+        -0.1,
+        0.0,
+        1.0,
+        1.1,
+        f64::NAN,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+    ] {
+        assert_eq!(
+            finite_rate(1.0, 1024, epsilon),
+            Err(ModelError::InvalidInput("block_error_probability"))
+        );
+    }
+    for n in [1, 99] {
+        assert!(matches!(
+            finite_rate(1.0, n, 0.001),
+            Err(ModelError::UnsupportedRegime(_))
+        ));
+    }
+    for epsilon in [1e-10, 0.5, 0.9] {
+        assert!(matches!(
+            finite_rate(1.0, 1024, epsilon),
+            Err(ModelError::UnsupportedRegime(_))
+        ));
+    }
+    for rho in [0.001, 1e-20, f64::from_bits(1)] {
+        assert!(matches!(
+            finite_rate(rho, 100, 0.001),
+            Err(ModelError::UnsupportedRegime(_))
+        ));
+    }
+    // Stable logs and dispersion keep even huge finite SNR usable.
+    assert!(finite_rate(f64::MAX, 100, 1e-9).unwrap().is_finite());
+    let ordinary = finite_rate(1.0, 1024, 0.001).unwrap();
+    assert!(finite_rate(1.0, 2048, 0.001).unwrap() > ordinary);
+    assert!(finite_rate(1.0, 1024, 0.01).unwrap() > ordinary);
+    let long = finite_rate(1.0, u32::MAX, 0.001).unwrap();
+    assert!(long > ordinary && long < 1.0);
+}
 
 #[test]
 fn gaussian_tails_match_independent_high_precision_references() {

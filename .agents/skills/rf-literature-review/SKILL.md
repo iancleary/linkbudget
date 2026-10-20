@@ -102,6 +102,20 @@ description: Evaluate published communications and propagation methods against l
   a threshold changes, rerun the actual Monte Carlo CLI and independent verifier
   before refreshing its observations. No new dependency installation, compiler
   minimum claim without evidence, or FEC-accuracy claim follows from tail accuracy.
+- For finite-blocklength AWGN, follow
+  `docs/production-models.md#finite-blocklength-planning-per-complex-channel-use`
+  and the public workflows in `tests/published_models.rs`. Reproduce references
+  with the bundled [`scripts/finite_blocklength_references.py`](scripts/finite_blocklength_references.py)
+  using `uv run --offline --no-project python` from the checkout root, then run
+  `CARGO_NET_OFFLINE=true just fmt-check lint test doc-check` and `git diff --check`.
+  The helper imports its sibling Gaussian reference primitives, checks 80/120-digit
+  Decimal stability, and writes only stdout. Preserve real/complex normalization
+  and distinguish second order from the source table's logarithmic correction.
+  The n>=100 and 1e-9<=epsilon<.5 limits are product guardrails, not published
+  accuracy guarantees. Nonpositive estimates must remain explicit errors, not
+  clamped rates; bits/complex-use are not modem throughput. On a mismatch,
+  inspect units, source order, and independent precision before refreshing any
+  literals; do not copy production outputs or silently broaden supported regimes.
 - If access or extraction fails, narrow the evidence claim or find a legitimate
   alternate source. Do not bypass access controls, invent citations, or copy
   downloadable reference code without a license review.

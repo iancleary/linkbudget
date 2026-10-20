@@ -19,11 +19,145 @@ values rather than proving only that a forward/inverse pair agrees.
 | 3 | Rain attenuation/exceedance | P.838-3 + P.618-14 annual rain quantiles → explicit full-link loss; pinned validation CSV and independent numeric cases |
 | 4 | Monte Carlo uncertainty | Real seeded example CLI + independent CSV/report statistics; analytic receiver/rate control |
 | 5 | Gaussian-tail numerics | Independent high-precision tails/BER/inverse references; real Monte Carlo caller reverified |
-| 6 | Finite-blocklength estimates | Planned |
+| 6 | Finite-blocklength estimates | Second-order complex AWGN rates against independent Decimal literals; real/complex source normalization and full-link planning alongside unchanged Shannon capacity |
 
 The stack uses no automatic climate-data downloads, production writes, modem
 simulations, or new runtime dependencies. Validation of formulas is not field
 validation of their inputs or performance guarantees for a particular decoder.
+
+## Finite blocklength: planning per complex channel use
+
+### Mental model, source, and decision
+
+Shannon capacity is the infinite-blocklength ideal reference. A finite codeword
+has a reliability-dependent second-order penalty. The additive
+[`phy::awgn_finite_blocklength_rate_bits_per_complex_use`](../src/phy.rs) returns
+only `R = C - sqrt(V/n) * Q_inverse(epsilon)`, where
+`C = log2(1+rho)` and `V = (1-(1+rho)^(-2)) * log2(e)^2`.
+Here `rho` is linear channel SNR, `n` counts **complex channel uses**, and
+`epsilon` is block error probability, not BER. The existing `PhyRate` and
+`LinkBudget::phy_rate()` still mean Shannon capacity in bits/s. There is no
+order selector, logarithmic correction, automatic throughput helper, dependency,
+or change to their semantics.
+
+The primary source is Polyanskiy, Poor, and Verdu (2010), *Channel Coding Rate in
+the Finite Blocklength Regime*, [DOI 10.1109/TIT.2010.2043769](https://doi.org/10.1109/TIT.2010.2043769).
+The [author-hosted manuscript](https://people.lids.mit.edu/yp/homepage/data/finite_block.pdf),
+Theorem 54, equations 291–298 and Table I (manuscript pages 53–55), was read.
+Its **real** AWGN capacity and dispersion each carry a factor 1/2. Grouping two
+real uses into one complex use doubles both: `n_real = 2*n_complex`,
+`C_complex = 2*C_real`, `V_complex = 2*V_real`, preserving the total information
+and variance. This is the unconstrained Gaussian-input ideal AWGN model in the
+maximal/equal codeword-power regime, not a finite-constellation decoder.
+No paper text, diagrams, PDF, or third-party implementation code is redistributed.
+
+This function retains **second order only**. The source's equation 296 and
+Table I include a logarithmic correction. For Table I's 0 dB, epsilon=.001,
+`n_real≈2750`, the corresponding `n_complex=1375` gives second-order
+`R/C=0.8958774129779173`. Adding the source's real-use correction, normalized
+to complex-use rate, `log2(2750)/2750`, gives `0.9000320369427535`, consistent
+with the rounded published target .9. The API's second-order result is **not**
+the exact table entry. Nor is the approximation a rigorous upper/lower bound,
+an achieved rate, or a prediction of any decoder's BLER.
+
+### Public planning workflow
+
+Use C/N0 to obtain SNR in the **channel** bandwidth, not receiver noise bandwidth.
+An explicit ideal Nyquist model below supplies 20 million complex uses/s; this
+is a separate caller assumption, not an automatic bandwidth-to-rate conversion.
+
+```rust
+use linkbudget::phy::awgn_finite_blocklength_rate_bits_per_complex_use as finite_rate;
+use linkbudget::{energy, LinkBudget, PathLoss, Receiver, ReceiverNoise, Transmitter};
+
+let budget = LinkBudget {
+    name: "Finite-blocklength ideal AWGN planning",
+    bandwidth: 20e6, // channel bandwidth, Hz
+    transmitter: Transmitter { output_power: 10.0, gain: 35.0, bandwidth: 20e6 },
+    receiver: Receiver {
+        gain: 40.0,
+        noise: ReceiverNoise::SystemTemperature { temperature_k: 200.0 },
+        bandwidth: 30e6, // receiver noise bandwidth, Hz
+    },
+    path_loss: PathLoss { frequency: 20e9, distance: 550e3 },
+    frequency_dependent_loss: Some(3.0),
+};
+let channel_snr_db = energy::c_over_no_to_snr(budget.c_over_no(), budget.bandwidth);
+let rho = 10_f64.powf(channel_snr_db / 10.0);
+let bits_per_complex_use = finite_rate(rho, 1024, 0.001)?;
+assert!((bits_per_complex_use - 3.718866070338616).abs() < 1e-12);
+let complex_uses_per_second = 20e6; // explicit ideal signaling assumption
+let planned_bits_per_second = bits_per_complex_use * complex_uses_per_second;
+let block_duration_s = 1024.0 / complex_uses_per_second; // 51.2 microseconds
+assert!(planned_bits_per_second < budget.phy_rate().bps());
+# Ok::<(), linkbudget::ModelError>(())
+```
+
+The public integration workflow runs this calculation and checks independent
+C/N0=84.31323029152998 dB-Hz, channel rho=13.498733815845334,
+Shannon capacity=77157100.18205117 bit/s, and second-order planning quantity
+74377321.40677232 bit/s. Doubling only receiver noise bandwidth leaves both
+channel results unchanged. No framing, finite constellation, pilot overhead,
+implementation loss, fading, or decoder is modeled. Information bits are not
+channel uses, and receiver noise bandwidth is not a substitute for use rate.
+
+### Product guardrails, evidence, and repeatable verification
+
+Require finite positive SNR, `n>=100`, and `1e-9<=epsilon<0.5`. These are
+**conservative product guardrails, not published accuracy guarantees**. No
+theorem establishes universal accuracy inside this domain. Physically malformed
+inputs (zero blocklength, nonpositive/nonfinite SNR, probability outside (0,1)
+or nonfinite) return `InvalidInput`. Shorter positive blocks and unsupported
+error regimes return `UnsupportedRegime`, as does a nonpositive estimated rate:
+there is no silent zero clamp. Nonfinite arithmetic or failed inverse-Q evaluation
+returns `NumericalFailure`. A rejected rate is not proof that communication is
+impossible; use appropriate finite-blocklength bounds or decoder evidence.
+
+The implementation reuses the checked Gaussian inverse Q, `ln_1p` for capacity,
+and `exp_m1` for dispersion, avoiding small-SNR cancellation and large-SNR
+squaring overflow. Taking the dispersion square root before division also avoids
+premature underflow for tiny positive SNR.
+
+The maintained independent generator is
+[`finite_blocklength_references.py`](../.agents/skills/rf-literature-review/scripts/finite_blocklength_references.py).
+It uses stdlib Decimal at 80 and 120 digits, Machin pi, erf Taylor summation,
+and independent inverse-Q bisection (65 steps), not crate output or the production
+gamma continued fraction. Both precisions produced identical rounded binary64
+references. This is observed stability, not a proof of correct rounding.
+Public workflows in [`tests/published_models.rs`](../tests/published_models.rs)
+exercise these literal cases with an absolute `2e-14 bits/complex-use` gate:
+
+| Linear SNR | Complex uses | Block error probability | Second-order bits/complex-use |
+| --- | --- | --- | --- |
+| 1 | 1024 | .001 | 0.8793447230709913 |
+| 1 | 1375 | .001 | 0.8958774129779173 |
+| .1 | 1000 | .1 | 0.11314631116044349 |
+| 10 | 200 | 1e-6 | 2.9765239948216746 |
+| 100 | 100 | 1e-9 | 5.792953252655331 |
+| 1 | 100 | .1 | 0.8398815946817 |
+
+Additional public checks cover guardrail boundaries, invalid/nonfinite inputs,
+nonpositive rates including tiny/subnormal SNR, maximum finite SNR, longer blocks,
+and relaxed reliability. This verifies equations and selected numerical cases,
+not approximation error against exact finite-length bounds, hardware performance,
+or a global numerical error guarantee.
+
+From the checkout root, reproduce the independent references, then run the real
+public workflow and repository gates without downloads:
+
+```sh
+uv run --offline --no-project python .agents/skills/rf-literature-review/scripts/finite_blocklength_references.py
+CARGO_NET_OFFLINE=true cargo test --test published_models finite_blocklength
+CARGO_NET_OFFLINE=true just fmt-check lint test doc-check
+git diff --check
+```
+
+Investigate mismatches in real/complex normalization, channel SNR, and order of
+approximation before changing literals; never regenerate expectations from crate
+output or relax tolerances to hide disagreement. Root MSRV remains 1.70; only
+the installed Rust 1.99.0 was exercised, with **no older compiler test**. The
+optional Monte Carlo example's separate 1.80 requirement remains metadata/source
+inference as described below.
 
 ## Monte Carlo: conditional uncertainty, not availability
 
