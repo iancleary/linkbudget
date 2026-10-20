@@ -17,13 +17,64 @@ values rather than proving only that a forward/inverse pair agrees.
 | 1 | DVB-S2 reference profiles | Table 13 rows, allocation → selection → rate; baseline API retained |
 | 2 | Atmospheric sky noise | P.618-14 eq. 69 → receiver source noise + path attenuation → full-link SNR |
 | 3 | Rain attenuation/exceedance | P.838-3 + P.618-14 annual rain quantiles → explicit full-link loss; pinned validation CSV and independent numeric cases |
-| 4 | Monte Carlo uncertainty | Planned |
+| 4 | Monte Carlo uncertainty | Real seeded example CLI + independent CSV/report statistics; analytic receiver/rate control |
 | 5 | Gaussian-tail numerics | Planned |
 | 6 | Finite-blocklength estimates | Planned |
 
 The stack uses no automatic climate-data downloads, production writes, modem
 simulations, or new runtime dependencies. Validation of formulas is not field
 validation of their inputs or performance guarantees for a particular decoder.
+
+## Monte Carlo: conditional uncertainty, not availability
+
+The [receiver example](../examples/montecarlo-cn0-target/README.md) reuses
+`MonteCarloEngine` for 50,000 trials at seed 99, with named receiver samples and
+explicit 10 Mbps information rate. It converts each receiver SNR through C/N0
+to Eb/N0 before comparing with the real uncoded QPSK BER 1e-6 threshold. A failed
+threshold calculation propagates an error. Noise bandwidth is not information
+rate; under flat noise and full signal capture it cancels from Eb/N0.
+
+[JCGM 101:2008](https://www.bipm.org/documents/20126/2071204/JCGM_101_2008_E.pdf),
+*Evaluation of measurement data — Supplement 1 to the GUM — Propagation of
+distributions using a Monte Carlo method*, sections 5.9–5.10 and 7.2–7.9,
+provides the distribution-propagation framework. This example uses a fixed trial
+count, **not** its adaptive numerical-tolerance procedure and not a claim of
+complete JCGM conformance. Its independent uniforms are illustrative, not climate
+data. Three distinct uncertainties matter:
+
+- **Input uncertainty/spread:** choices of distributions, bounds, and joint
+  dependence determine the modeled margin distribution. The example makes the
+  independence assumption explicit; measured correlations are not available.
+- **Monte Carlo sampling uncertainty:** the finite count of margins below zero
+  estimates a conditional failure probability. The two-sided 95% Wilson score
+  interval uses z=1.959963984540054; see E. B. Wilson (1927),
+  [*Probable Inference, the Law of Succession, and Statistical Inference*](https://doi.org/10.1080/01621459.1927.10502953).
+  If no failures occur, an additional one-sided exact 95% upper bound is
+  `-expm1(log(0.05)/N)` (binomial zero-count inversion). These are different
+  intervals, not bounds on annual availability. Margin quantiles describe spread,
+  not confidence intervals on the quantiles themselves.
+- **Model discrepancy:** ideal AWGN/QPSK, complete signal capture, and thermal
+  noise omit real receiver impairments and time-varying weather. More trials
+  cannot correct these omissions or unjustified input distributions.
+
+Actual offline verification ran the example CLI with its real dependencies and
+checked the sorted `eb_no_margin_db` CSV against the summary using the
+[stdlib-only verifier](../examples/montecarlo-cn0-target/verify_output.py).
+Observed N=50,000, failures=4,039, p=0.08078, Wilson95=
+[0.078423583224, 0.083200828482]; p05/p50/p95 margins=
+-0.407631310 / 4.267138194 / 8.880109851 dB. The independent zero-count upper
+bound at this N is 5.99128506245549e-5. The public Receiver/energy workflow
+checks SI thermal noise at 340 K, -90 dBm against C/N0=83.28437800279511 dB-Hz
+and Eb/N0=13.284378002795108 dB at 10 Mbps, across three noise bandwidths and a
+doubled-rate control. No repeated-run coverage study, plotting runtime check,
+field validation, or adaptive convergence proof is claimed.
+
+For future changes, run the example and verifier **from its directory** as shown
+in its README, then the root `CARGO_NET_OFFLINE=true just fmt-check lint test
+doc-check` gates. Keep the CSV header, plot reader, report labels, and README
+paths in sync. The old tracked SNR PNG is historical and must not be presented
+as current evidence. Do not update input distributions from rain quantiles
+without a separately justified joint stochastic model and time basis.
 
 ## Rain: annual exceedance is not pass availability
 

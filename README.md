@@ -362,32 +362,36 @@ If you use `linkbudget` as a library, install any `tracing` subscriber in your a
 
 ## Optional: Monte Carlo Receiver Margin Example (examples crate)
 
-This repo includes an optional standalone example crate for Monte Carlo analysis of
-receiver SNR margin using `montycarlo` + `linkbudget::Receiver`.
+This optional example requires **Rust 1.80+** because of its existing locked
+Rayon dependencies; the root library remains Rust 1.70. This minimum is derived
+from dependency metadata and source, not a compiler test on Rust 1.80 (only the
+installed Rust 1.99.0 was exercised).
 
-Path:
-- `examples/montecarlo-cn0-target/`
+The [standalone example](examples/montecarlo-cn0-target/README.md) reuses
+`montycarlo::MonteCarloEngine` and `linkbudget::Receiver` for 50,000 trials with
+seed 99. Independent uniform inputs are **illustrations**, not calibrated climate
+or hardware distributions. Each trial converts SNR in its noise bandwidth to
+C/N0, then Eb/N0 at a fixed 10 Mbps information rate, and subtracts the uncoded
+QPSK threshold for BER 1e-6.
 
-What it does:
-- Randomizes realistic receiver parameters each trial:
-  - source noise temperature (K)
-  - receiver noise figure at the 290 K reference (dB)
-  - bandwidth (Hz)
-  - input power (dBm)
-- Instantiates a `Receiver` and computes SNR per trial
-- Computes SNR margin vs a target and writes CSV + summary
-- Produces Python histogram/CDF plots
-
-Run:
+The report includes margin quantiles, observed failures (`margin < 0`), and a
+two-sided 95% Wilson interval for the conditional failure probability. Zero
+failures additionally produce a distinct one-sided 95% exact upper bound, not
+proof of zero risk. This is not field or annual availability and has no adaptive
+convergence guarantee.
 
 ```bash
 cd examples/montecarlo-cn0-target
-uv sync
-cargo run
-uv run plot_cn0_margin.py
+cargo run --offline --locked
+uv run --offline --no-project python verify_output.py
+# Optional, with the example's plotting dependencies already available:
+uv run --offline plot_cn0_margin.py
 ```
 
-Output files:
-- `output/receiver_snr_margin_samples.csv`
-- `output/receiver_snr_margin_summary.txt`
-- `output/receiver_snr_margin_plots.png`
+Outputs under that example's `output/` directory:
+- `receiver_ebno_margin_samples.csv` (`eb_no_margin_db`, sorted samples)
+- `receiver_ebno_margin_summary.txt` (assumptions, inputs, statistics, intervals)
+- `receiver_ebno_margin_plots.png` (optional histogram/CDF)
+
+The retained `receiver_snr_margin_plots.png` is historical output from the old
+SNR/threshold comparison, not a visualization of the corrected calculation.

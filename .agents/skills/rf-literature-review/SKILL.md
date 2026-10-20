@@ -71,6 +71,15 @@ description: Evaluate published communications and propagation methods against l
   implementable modem threshold; BER, FER, PER, and outage are different targets.
 - Monte Carlo precision does not remove model uncertainty. Preserve correlations
   and distinguish sampling error, input uncertainty, and model discrepancy.
+  For the maintained receiver example, follow the run/check sequence in
+  `examples/montecarlo-cn0-target/README.md`: run the real offline CLI from its
+  directory, then its stdlib-only `verify_output.py` consumer and public analytic
+  receiver workflow. The helpers belong to that example, not this skill. Inspect
+  counts, quantiles, and interval meanings before citing results; zero observed
+  failures are not zero risk. Do not infer statistical coverage or field validity
+  from one seeded run. If output is missing, check the working directory; never
+  use the historical SNR PNG as current evidence or install plotting tools as
+  an implicit recovery step. Keep generated artifacts out of the diff.
 - A finite tiny BER result is not proof of tail accuracy. Check Gaussian-tail
   formulas and inverses against independent references and physical limits.
 - If access or extraction fails, narrow the evidence claim or find a legitimate
