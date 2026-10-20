@@ -18,7 +18,7 @@ values rather than proving only that a forward/inverse pair agrees.
 | 2 | Atmospheric sky noise | P.618-14 eq. 69 → receiver source noise + path attenuation → full-link SNR |
 | 3 | Rain attenuation/exceedance | P.838-3 + P.618-14 annual rain quantiles → explicit full-link loss; pinned validation CSV and independent numeric cases |
 | 4 | Monte Carlo uncertainty | Real seeded example CLI + independent CSV/report statistics; analytic receiver/rate control |
-| 5 | Gaussian-tail numerics | Planned |
+| 5 | Gaussian-tail numerics | Independent high-precision tails/BER/inverse references; real Monte Carlo caller reverified |
 | 6 | Finite-blocklength estimates | Planned |
 
 The stack uses no automatic climate-data downloads, production writes, modem
@@ -60,9 +60,12 @@ data. Three distinct uncertainties matter:
 Actual offline verification ran the example CLI with its real dependencies and
 checked the sorted `eb_no_margin_db` CSV against the summary using the
 [stdlib-only verifier](../examples/montecarlo-cn0-target/verify_output.py).
-Observed N=50,000, failures=4,039, p=0.08078, Wilson95=
-[0.078423583224, 0.083200828482]; p05/p50/p95 margins=
--0.407631310 / 4.267138194 / 8.880109851 dB. The independent zero-count upper
+Observed N=50,000, failures=4,038, p=0.08076, Wilson95=
+[0.078403854422, 0.083180560357]; p05/p50/p95 margins=
+-0.407177696 / 4.267591808 / 8.880563465 dB. The accurate Gaussian kernel
+sets the QPSK threshold to 10.529831699571446 dB; replacing the former tail
+approximation shifts margins upward by about 0.000454 dB and removes one
+observed failure, without changing inputs or seed. The independent zero-count upper
 bound at this N is 5.99128506245549e-5. The public Receiver/energy workflow
 checks SI thermal noise at 340 K, -90 dBm against C/N0=83.28437800279511 dB-Hz
 and Eb/N0=13.284378002795108 dB at 10 Mbps, across three noise bandwidths and a
@@ -75,6 +78,133 @@ doc-check` gates. Keep the CSV header, plot reader, report labels, and README
 paths in sync. The old tracked SNR PNG is historical and must not be presented
 as current evidence. Do not update input distributions from rain quantiles
 without a separately justified joint stochastic model and time basis.
+
+## Gaussian tails: log probabilities before underflow
+
+### Source, decision, and domain
+
+[`ber`](../src/ber.rs) now shares a pure private Gaussian kernel rather than the
+former Abramowitz–Stegun 7.1.26 approximation. The implementation is independently
+written from [DLMF 7.6.1 (erf series)](https://dlmf.nist.gov/7.6.E1),
+[7.11.2 (incomplete-gamma identity)](https://dlmf.nist.gov/7.11.E2), and
+[8.9.2 (gamma continued fraction)](https://dlmf.nist.gov/8.9.E2). The source
+TeX equations were checked against those NIST URLs. Even contraction of the
+fraction gives the implemented `b_n=x*x+0.5+2*n`, `a_n=-n*(n-0.5)` recurrence.
+No Numerical Recipes, Netlib, fdlibm, libm, or other implementation code was
+copied, and no runtime dependency was added. The [physics guide](physics-communications.md#numerical-agreement-is-not-physical-accuracy)
+explains the branch choice, normalization, and logarithmic evaluation.
+
+The decision is to retain the existing linear API while adding checked natural-log
+BER and a reusable checked inverse Q. The small-x series stops when its term is
+at most machine epsilon times its sum. The positive-tail modified Lentz recurrence
+stops when its multiplicative update differs from one by at most two epsilons;
+both have a 10,000-iteration failure cap, not a fallback approximation. `erfc`
+retains normal NaN/infinity handling and representable underflow. Checked APIs
+report `NumericalFailure` for nonfinite log results or failed convergence.
+
+Use finite Eb/No in dB and a supported binary constellation: power-of-two PSK
+M>=2, square power-of-two QAM M>=4. Higher orders still use nearest-neighbor
+low-BER approximations. Coherent precoded MSK remains the BPSK bit curve. New
+checked APIs reject non-square `Mqam(32)`; legacy linear BER/inversion and
+heuristic presets intentionally retain their old unvalidated geometry. More
+accurate Gaussian tails do **not** improve the provenance of FEC gain constants.
+
+```rust
+use linkbudget::{ber, Modulation};
+
+// Linear BER underflows, but its natural logarithm remains usable.
+let modulation = Modulation::Qpsk;
+assert_eq!(ber::ber_from_db(30.0, &modulation), 0.0);
+let log_ber = ber::log_ber_from_db(30.0, &modulation)?;
+assert!((log_ber + 1004.7198891395119).abs() < 2e-12);
+let threshold_db = ber::required_eb_no_from_log_ber(-1000.0, &modulation)?;
+assert!((threshold_db - 29.97946356108686).abs() < 1e-11);
+let decision_sigma = ber::inverse_q_function(1e-300)?;
+assert!((decision_sigma - 37.0470962993612).abs() < 3e-14);
+# Ok::<(), linkbudget::ModelError>(())
+```
+
+The log inverse accepts only finite negative targets reached in the inclusive
+[-5, 50] dB bracket. Legacy `required_eb_no_db` preserves its `Option` signature
+and linear endpoint rejection, but now solves in log space to f64 resolution.
+Inverse Q accepts the open interval (0,1); 0 and 1 are errors, not infinities.
+It uses symmetry and positive-tail log bisection, supporting the least subnormal
+input. Rounding near probability 1/2 limits relative accuracy of a near-zero
+threshold; extreme probabilities near 1 are limited by the input's representable
+complement. No finite result is promised for log-BER beyond f64's finite range.
+
+### Independent evidence and repeatable verification
+
+The literal references in [`tests/published_models.rs`](../tests/published_models.rs)
+were calculated independently with Python stdlib `decimal` at **1,200 digits**:
+Machin's `pi=16*atan(1/5)-4*atan(1/239)` using the alternating arctangent series,
+then the erf Taylor series and `1-erf`. That deliberately uses cancellation with
+enough precision rather than reusing the production tail continued fraction.
+Inputs for erfc references are exact Decimal conversions of the f64 inputs;
+BER references use exact decimal dB values. Thresholds were obtained by 65
+bisections in the erfc argument and conversion to dB, not from crate output.
+No high-precision package was installed or required.
+
+The maintained, self-contained generator is
+[`gaussian_references.py`](../.agents/skills/rf-literature-review/scripts/gaussian_references.py),
+owned by the literature-review skill. From the checkout root:
+
+```sh
+uv run --offline --no-project python .agents/skills/rf-literature-review/scripts/gaussian_references.py
+```
+
+It repeats the calculation at **1,200 and 1,600 digits**, checks that every
+rounded binary64 output is identical, and prints the references only after that
+check passes. It uses no crate output, high-precision packages, network access,
+or file writes. The erf and arctangent series have explicit iteration-cap errors;
+bisection checks its bracket and takes the original fixed 65 argument steps.
+8-PSK uses the exact radical for `sin(pi/8)`; square QAM uses Decimal logarithms
+for bits per symbol. The QPSK log target is inverted directly without exponentiating
+it into binary64.
+
+The supported computation set is deliberately finite: the 17 erfc arguments listed
+in the helper (0 through 27.3, including the 1.5 branch neighbors); binary
+modulation at 0/10/20/30 dB, 8-PSK at 10 dB, 16-QAM at 15 dB, and 64-QAM at
+20 dB; QPSK thresholds for decimal BER 1e-6/1e-100/1e-300 and log BER -1000;
+and inverse Q for decimal p=.1/1e-100/1e-300 and the exact binary64 least
+subnormal. Decimal probability inputs intentionally reproduce the original
+reference procedure, rather than claiming exact conversion of binary64 targets.
+No flags extend this set. Precision agreement is observed stability, not a proof
+of correct rounding or a guarantee for arbitrary tails: cancellation consumes
+precision in both the large Taylor terms and the tiny residual. Investigate any
+cap, bracket, or stability error before changing literals or extending the set.
+
+Observed on the installed Rust 1.99.0/macOS environment (no older compiler test):
+
+| Check | Actual evidence |
+| --- | --- |
+| 13 erfc literals from 0 through 26, including 1.5 +/- 1e-12 | Maximum relative error `8.1e-14`, gate `1e-12` |
+| Additional 26,001-point erfc grid at x=i/1000, 0<=i<=26000 | Maximum relative difference `2.02e-13` against platform Python `math.erfc`; supporting evidence, not high-precision proof |
+| Subnormal erfc | x=27 gives `5.23705e-319`; x=27.2 gives two least-subnormal units; x=27.25 rounds to zero |
+| Public BER/log-BER | BPSK/QPSK/MSK, 8-PSK, 16/64-QAM literal values; log QPSK at 30 dB `-1004.7198891395119` |
+| QPSK inverse thresholds | BER 1e-6, 1e-100, 1e-300: `10.529831699571448`, `23.546460034850334`, `28.36478352821862` dB; gate `1e-11 dB` |
+| Log target beyond exp underflow | log BER -1000 -> `29.97946356108686 dB`; gate `1e-11 dB` |
+| Inverse Q | p=.1, 1e-100, 1e-300, least subnormal; absolute threshold gate `3e-14`; minimum maps to `38.467405617144344` |
+| Real Monte Carlo consumer | CLI, receiver control, and CSV/report verifier pass offline; independent threshold comparison strengthened to `1e-10 dB` |
+
+These are **measured errors, not rigorous global bounds**. Subnormal relative
+error can be large; on this platform `math.erfc(27.2)` itself returned zero,
+whereas the Decimal reference rounds to two subnormal units. Do not use a
+platform function as an unquestioned reference at its underflow boundary.
+A forward/inverse round trip alone is also insufficient evidence.
+
+For future changes, inspect the source equations and preserve the exact bit-energy
+and constellation assumptions first. Recompute independent literals with the
+maintained Decimal helper above (for new points, independently establish enough
+precision for cancellation and rounded stability). Keep branch-boundary,
+negative/NaN/infinity, subnormal, invalid
+constellation, and below-underflow log targets in the public workflows. Run
+`CARGO_NET_OFFLINE=true just fmt-check lint test doc-check`, then run the real
+standalone example and `verify_output.py` from its directory following its README,
+and `git diff --check`. If seeded observations change, recheck the independently
+computed threshold before updating reported numbers. Do not relax numerical
+checks to match crate output. Root Rust MSRV stays 1.70; the optional example's
+existing locked dependencies require 1.80, inferred from metadata/source only.
 
 ## Rain: annual exceedance is not pass availability
 

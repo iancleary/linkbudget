@@ -67,7 +67,7 @@ cargo fmt --all -- --check
 The stdlib-only verifier independently recomputes counts, quantiles, mean, and
 score-test quadratic roots from the actual CSV and compares the summary. It also
 checks the zero-failure bound and compares the threshold with Python's `erfc`
-inversion (0.001 dB tolerance accommodates the current crate approximation).
+inversion (1e-10 dB tolerance checks the accurate Gaussian-tail kernel).
 The public receiver workflow test uses SI thermal noise at 340 K and -90 dBm:
 C/N0 = 83.28437800279511 dB-Hz, Eb/N0 = 13.284378002795108 dB at 10 Mbps,
 and ideal QPSK margin approximately 2.754546303 dB. It checks several noise
@@ -91,9 +91,12 @@ historical image as verification.
 
 ## Interpretation and limits
 
-The seeded run produced 4,039 failures, p=0.08078, Wilson interval
-[0.078423583224, 0.083200828482], and p05/p50/p95 margins of
--0.407631310 / 4.267138194 / 8.880109851 dB. These are reproducibility evidence
+The seeded run produced 4,038 failures, p=0.08076, Wilson interval
+[0.078403854422, 0.083180560357], and p05/p50/p95 margins of
+-0.407177696 / 4.267591808 / 8.880563465 dB. The QPSK threshold is
+10.529831699571446 dB. Replacing the former Gaussian-tail approximation
+increased margins by about 0.000454 dB and removed one observed failure;
+inputs and seed are unchanged. These are reproducibility evidence
 for this example and lockfile, not a precision or coverage proof. No repeated-run
 statistical coverage study was performed. The zero-failure formula is checked
 independently, but this default scenario has nonzero failures.

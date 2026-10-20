@@ -292,20 +292,53 @@ SNR threshold, which must use the same $B_n$ as its noise-floor calculation.
 
 ## Numerical agreement is not physical accuracy
 
-`erfc` uses the finite polynomial approximation identified in the source as
-Abramowitz–Stegun 7.1.26. Its roughly $1.5\times10^{-7}$ quoted error is an
-absolute error, not a guarantee of small relative error in very small tails.
-Negative arguments use $\operatorname{erfc}(-x)=2-\operatorname{erfc}(x)$.
-The coefficients approximate a special function; they are not physical constants.
+The shared private [`gaussian`](../src/gaussian.rs) kernel evaluates `erfc`
+from mathematical identities, with no new runtime dependencies or copied
+third-party implementation. For $0\leq x<1.5$, it sums the alternating erf
+Taylor series ([DLMF 7.6.1](https://dlmf.nist.gov/7.6.E1)) and uses `log1p(-erf)`.
+For $x\geq1.5$, [DLMF 7.11.2](https://dlmf.nist.gov/7.11.E2) gives
+$\operatorname{erfc}(x)=\Gamma(1/2,x^2)/\sqrt\pi$.
+Contracting the continued fraction in [DLMF 8.9.2](https://dlmf.nist.gov/8.9.E2)
+gives denominators $b_n=x^2+1/2+2n$ and numerators $a_n=-n(n-1/2)$.
+A modified Lentz recurrence evaluates its denominator $F$, then computes
+$\log\operatorname{erfc}(x)=-x^2+\log x-\log\sqrt\pi-\log F$ directly.
+It never takes the logarithm of an underflowed tail. The finite iteration cap
+reports failure rather than returning an unconverged estimate. Denominators in
+this positive-domain branch do not need arbitrary tiny-value replacements.
 
-`required_eb_no_db` checks finite endpoint BER values in [-5, 50] dB and rejects
-nonpositive, nonfinite, or unbracketed targets. It bisects the decreasing
-implemented curve for at most 100 iterations, stopping early when relative BER
-residual is below $10^{-6}$. Each bisection halves the interval; floating-point
-resolution eventually limits that process. The residual measures agreement with
-the implemented approximation, not with an exact Gaussian tail or a real modem.
-No bracketed result validates an unsupported constellation, FEC model, or input.
-Link margin is actual minus required $E_b/N_0$ on the same bit-energy basis.
+Negative arguments use $\operatorname{erfc}(-x)=2-\operatorname{erfc}(x)$;
+NaN propagates, and infinities have their mathematical endpoint values. `erfc`
+and `q_function` can underflow normally; Q exponentiates its own log tail once,
+not an already rounded subnormal erfc. At the 13 independent high-precision
+literal points through x=26, measured maximum relative erfc error was `8.1e-14`;
+this is empirical evidence, **not a guaranteed bound**. Subnormal tails lose
+relative precision. See the [production evidence and verification recipe](production-models.md#gaussian-tails-log-probabilities-before-underflow).
+
+`ber::log_ber_from_db` returns the **natural logarithm** of uncoded BER. Its
+checked domain is finite Eb/No in dB, power-of-two PSK orders >=2, and square
+power-of-two QAM orders >=4. Unlike legacy linear APIs, it rejects `Mqam(32)`.
+It preserves the ideal/coherent and higher-order nearest-neighbor caveats above.
+A finite input whose log probability is outside finite f64 representation
+returns `NumericalFailure`, not a promised finite log result.
+
+`ber::required_eb_no_from_log_ber` takes a finite strictly negative natural-log
+target, including values below linear underflow. It rejects targets outside the
+inclusive [-5, 50] dB bracket. For example, log BER = -1000 needs QPSK Eb/No
+29.97946356108686 dB. Legacy `required_eb_no_db` retains its `Option` signature,
+nonpositive/nonfinite and linear endpoint rejection semantics, and unvalidated
+constellation behavior. Both invert in log space, bisecting until the log
+residual is exactly zero or the bracket reaches f64 resolution (at most 200
+iterations). A valid result does not certify
+the physical approximation, FEC, or a real modem. Link margin remains actual
+minus required $E_b/N_0$ on the same bit-energy basis.
+
+`ber::inverse_q_function` accepts finite `0 < probability < 1`, including the
+least positive subnormal, and returns the Gaussian decision threshold. Endpoints
+are errors, not infinities. It uses symmetry above 1/2 and log-domain bisection
+on [0, 40] for the positive tail; Q(40) is below the least positive f64.
+It permits 200 iterations to reach f64 bracket resolution near zero. The least
+subnormal probability maps to approximately 38.467405617144344. This is a
+numerical primitive, not an inverse for a heuristic coded BER curve.
 
 Existing tests provide these useful checks, with the stated limits:
 

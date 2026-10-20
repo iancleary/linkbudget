@@ -32,6 +32,7 @@ pub mod energy;
 pub mod evm;
 #[allow(missing_docs, dead_code)]
 pub(crate) mod file_operations;
+mod gaussian;
 pub mod model_error;
 pub mod modulation;
 #[allow(missing_docs, dead_code)]

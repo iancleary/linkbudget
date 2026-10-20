@@ -3,7 +3,8 @@
 //! Provides theoretical BER as a function of Eb/No (uncoded) or
 //! required Eb/No for a target BER.
 //!
-//! All Eb/No values are in **linear** (not dB) unless suffixed with `_db`.
+//! Eb/No inputs are **linear** (not dB) unless suffixed with `_db`.
+//! Required-Eb/No inverse helpers return **dB**, as documented on each helper.
 //! Assume coherent detection in AWGN, correct synchronization, and no residual
 //! ISI. Higher-order curves are nearest-neighbor approximations, not exact BER.
 //! See `docs/physics-communications.md` for Gaussian-decision derivations,
@@ -11,27 +12,91 @@
 
 use std::f64::consts::PI;
 
+use crate::gaussian::{log_erfc_positive, log_q_positive};
 use crate::modulation::Modulation;
+use crate::ModelError;
 
-/// Complementary error function approximation (erfc).
-/// Uses Abramowitz & Stegun approximation 7.1.26, max absolute error ~1.5e-7.
-/// An absolute bound does not ensure small relative error in a very small tail.
+/// Complementary error function, using a Taylor series and gamma continued fraction.
+///
+/// Empirically checked to relative error below 1e-12 through x=26 (not a
+/// rigorous bound). Subnormal tails have limited relative precision and may
+/// round to zero. Negative inputs use erfc(-x)=2-erfc(x); infinities return
+/// 0 or 2, and NaN propagates. See `docs/production-models.md` for provenance.
 #[must_use]
 pub fn erfc(x: f64) -> f64 {
     if x < 0.0 {
         return 2.0 - erfc(-x);
     }
-    let t = 1.0 / (1.0 + 0.3275911 * x);
-    let poly = t
-        * (0.254829592
-            + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
-    poly * (-x * x).exp()
+    if x.is_nan() {
+        return f64::NAN;
+    }
+    if x * x == f64::INFINITY {
+        return 0.0;
+    }
+    log_erfc_positive(x).map_or(f64::NAN, f64::exp)
 }
 
-/// Q-function: Q(x) = 0.5 * erfc(x / sqrt(2))
+/// Gaussian upper-tail probability Q(x) = 0.5 * erfc(x / sqrt(2)).
+///
+/// NaN propagates; Q(+infinity)=0 and Q(-infinity)=1. Small tails are
+/// exponentiated only once, avoiding premature subnormal rounding of erfc.
 #[must_use]
 pub fn q_function(x: f64) -> f64 {
-    0.5 * erfc(x / std::f64::consts::SQRT_2)
+    if x < 0.0 {
+        return 1.0 - q_function(-x);
+    }
+    if x.is_nan() {
+        return f64::NAN;
+    }
+    if (x / std::f64::consts::SQRT_2).powi(2) == f64::INFINITY {
+        return 0.0;
+    }
+    log_q_positive(x).map_or(f64::NAN, f64::exp)
+}
+
+/// Inverse Gaussian upper tail: the finite x for which Q(x)=probability.
+///
+/// Requires a finite probability strictly between 0 and 1; endpoints are
+/// rejected, not mapped to infinities. Supports every positive f64 probability,
+/// including subnormals. Symmetry handles probabilities above 1/2; bisection
+/// compares logarithms so no underflowed forward probability is inverted.
+/// Numerical accuracy is limited by f64 and the tail kernel, not physical data.
+///
+/// # Errors
+/// Returns `InvalidInput` outside the open probability domain, or
+/// `NumericalFailure` if the Gaussian evaluation or solver fails.
+pub fn inverse_q_function(probability: f64) -> Result<f64, ModelError> {
+    if !probability.is_finite() || probability <= 0.0 || probability >= 1.0 {
+        return Err(ModelError::InvalidInput("probability"));
+    }
+    if probability == 0.5 {
+        return Ok(0.0);
+    }
+    let (tail, sign) = if probability > 0.5 {
+        (1.0 - probability, -1.0)
+    } else {
+        (probability, 1.0)
+    };
+    // Q(40) is below the least positive f64. Every valid tail is bracketed.
+    let log_target = tail.ln();
+    let mut lo = 0.0;
+    let mut hi = 40.0;
+    for _ in 0..200 {
+        let mid = (lo + hi) * 0.5;
+        if mid == lo || mid == hi {
+            return Ok(sign * mid);
+        }
+        let value = log_q_positive(mid)?;
+        if value == log_target {
+            return Ok(sign * mid);
+        }
+        if value > log_target {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+    Err(ModelError::NumericalFailure("inverse Q convergence"))
 }
 
 /// Ideal coherent BPSK and Gray-QPSK BER in AWGN.
@@ -122,46 +187,153 @@ pub fn link_margin_db(
     Some(actual_eb_no_db - required)
 }
 
-/// Required Eb/No (dB) for a target BER, found by bisection search.
+/// Natural logarithm of uncoded BER from finite Eb/No in dB.
 ///
-/// Returns `None` for a nonfinite or nonpositive target, nonfinite BER at a
-/// search endpoint, or a target outside the BER values reached in [−5, 50] dB.
-/// The stopping residual is relative BER error below 1e-6 against this module's
-/// forward approximation, with at most 100 iterations. It does not certify the
-/// physical model, a constellation's validity, or Gaussian-tail accuracy.
+/// Uses the same coherent AWGN models as [`ber_from_db`], but evaluates the
+/// Gaussian logarithm directly even when linear BER underflows. BPSK, QPSK,
+/// and coherent precoded MSK use the ideal bit curve. Higher-order PSK/QAM
+/// remain low-BER nearest-neighbor approximations, not decoder predictions.
+///
+/// # Errors
+/// Returns `InvalidInput` for nonfinite Eb/No, `UnsupportedRegime` unless
+/// M-PSK has power-of-two M>=2 or QAM has square power-of-two M>=4, and
+/// `NumericalFailure` if the logarithm cannot be represented as finite f64
+/// or the numerical evaluation fails. No FEC accuracy is implied.
+pub fn log_ber_from_db(eb_no_db: f64, modulation: &Modulation) -> Result<f64, ModelError> {
+    validate_constellation(modulation)?;
+    log_ber_unchecked_constellation(eb_no_db, modulation)
+}
+
+fn validate_constellation(modulation: &Modulation) -> Result<(), ModelError> {
+    match modulation {
+        Modulation::Mpsk(m) if *m < 2 || !m.is_power_of_two() => {
+            Err(ModelError::UnsupportedRegime("power-of-two PSK order >= 2"))
+        }
+        Modulation::Mqam(m) if *m < 4 || !m.is_power_of_two() || m.trailing_zeros() % 2 != 0 => {
+            Err(ModelError::UnsupportedRegime(
+                "square power-of-two QAM order >= 4",
+            ))
+        }
+        _ => Ok(()),
+    }
+}
+
+// The legacy linear APIs deliberately retain their unvalidated constellation
+// behavior. Keep their coefficient/argument geometry available to the inverse.
+fn log_ber_unchecked_constellation(
+    eb_no_db: f64,
+    modulation: &Modulation,
+) -> Result<f64, ModelError> {
+    if !eb_no_db.is_finite() {
+        return Err(ModelError::InvalidInput("eb_no_db"));
+    }
+    let (coefficient, scale) = match modulation {
+        Modulation::Mpsk(m) if *m != 2 => {
+            let k = (*m as f64).log2();
+            (2.0 / k, (2.0 * k).sqrt() * (PI / *m as f64).sin())
+        }
+        Modulation::Mqam(m) if *m != 4 => {
+            let k = (*m as f64).log2();
+            (
+                4.0 / k * (1.0 - 1.0 / (*m as f64).sqrt()),
+                (3.0 * k / (*m as f64 - 1.0)).sqrt(),
+            )
+        }
+        _ => (1.0, std::f64::consts::SQRT_2),
+    };
+    if !coefficient.is_finite() || coefficient <= 0.0 || !scale.is_finite() || scale <= 0.0 {
+        return Err(ModelError::NumericalFailure("BER geometry"));
+    }
+    let argument = (eb_no_db * (std::f64::consts::LN_10 / 20.0) + scale.ln()).exp();
+    let result = coefficient.ln() + log_q_positive(argument)?;
+    if result.is_finite() {
+        Ok(result)
+    } else {
+        Err(ModelError::NumericalFailure("BER logarithm"))
+    }
+}
+
+/// Required Eb/No in dB for a finite, strictly negative natural-log BER target.
+///
+/// Supports targets below linear f64 underflow without exponentiating them.
+/// The inclusive supported search bracket remains [-5, 50] dB. Constellation
+/// restrictions and physical approximations are those of [`log_ber_from_db`].
+///
+/// # Errors
+/// Returns `InvalidInput` for nonfinite or nonnegative log targets,
+/// `UnsupportedRegime` for an invalid constellation or an unbracketed target,
+/// and `NumericalFailure` if evaluation or bisection fails.
+pub fn required_eb_no_from_log_ber(
+    log_target_ber: f64,
+    modulation: &Modulation,
+) -> Result<f64, ModelError> {
+    if !log_target_ber.is_finite() || log_target_ber >= 0.0 {
+        return Err(ModelError::InvalidInput("log_target_ber"));
+    }
+    validate_constellation(modulation)?;
+    invert_log_ber(log_target_ber, modulation)
+}
+
+fn invert_log_ber(log_target: f64, modulation: &Modulation) -> Result<f64, ModelError> {
+    let mut lo = -5.0;
+    let mut hi = 50.0;
+    let at_lo = log_ber_unchecked_constellation(lo, modulation)?;
+    let at_hi = log_ber_unchecked_constellation(hi, modulation)?;
+    if log_target > at_lo || log_target < at_hi {
+        return Err(ModelError::UnsupportedRegime(
+            "BER target outside [-5, 50] dB",
+        ));
+    }
+    if log_target == at_lo {
+        return Ok(lo);
+    }
+    if log_target == at_hi {
+        return Ok(hi);
+    }
+    for _ in 0..200 {
+        let mid = (lo + hi) * 0.5;
+        if mid == lo || mid == hi {
+            return Ok(mid);
+        }
+        let value = log_ber_unchecked_constellation(mid, modulation)?;
+        if value == log_target {
+            return Ok(mid);
+        }
+        if value > log_target {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+    Err(ModelError::NumericalFailure("BER inverse convergence"))
+}
+
+/// Required Eb/No (dB) for a target BER, found by log-domain bisection.
+///
+/// Preserves the legacy inclusive [-5, 50] dB bracket and `None` rejection for
+/// nonfinite/nonpositive targets, nonfinite endpoint BER, or unbracketed targets.
+/// Constellations are not validated here (including the legacy non-square QAM
+/// presets); use [`required_eb_no_from_log_ber`] for a checked model. The search
+/// terminates at an exact log residual or f64 bracket resolution, with at
+/// most 200 iterations.
 #[doc(alias = "Eb/N0")]
 #[must_use]
 pub fn required_eb_no_db(target_ber: f64, modulation: &Modulation) -> Option<f64> {
-    let mut lo = -5.0_f64;
-    let mut hi = 50.0_f64;
-
     if !target_ber.is_finite() || target_ber <= 0.0 {
         return None;
     }
-    let ber_at_lo = ber_from_db(lo, modulation);
-    let ber_at_hi = ber_from_db(hi, modulation);
-    if !ber_at_lo.is_finite()
-        || !ber_at_hi.is_finite()
-        || target_ber > ber_at_lo
-        || target_ber < ber_at_hi
-    {
+    let at_lo = ber_from_db(-5.0, modulation);
+    let at_hi = ber_from_db(50.0, modulation);
+    if !at_lo.is_finite() || !at_hi.is_finite() || target_ber > at_lo || target_ber < at_hi {
         return None;
     }
-
-    // BER decreases as Eb/No increases, so we search for the crossing
-    for _ in 0..100 {
-        let mid = (lo + hi) / 2.0;
-        let ber_mid = ber_from_db(mid, modulation);
-        if (ber_mid - target_ber).abs() / target_ber < 1e-6 {
-            return Some(mid);
-        }
-        if ber_mid > target_ber {
-            lo = mid; // need more Eb/No
-        } else {
-            hi = mid; // too much Eb/No
-        }
+    if target_ber == at_lo {
+        return Some(-5.0);
     }
-    Some((lo + hi) / 2.0)
+    if target_ber == at_hi {
+        return Some(50.0);
+    }
+    invert_log_ber(target_ber.ln(), modulation).ok()
 }
 
 #[cfg(test)]

@@ -82,6 +82,26 @@ description: Evaluate published communications and propagation methods against l
   an implicit recovery step. Keep generated artifacts out of the diff.
 - A finite tiny BER result is not proof of tail accuracy. Check Gaussian-tail
   formulas and inverses against independent references and physical limits.
+  For the maintained kernel, follow the source/provenance, independent Decimal
+  reference procedure, and offline consumer checks in
+  `docs/production-models.md#gaussian-tails-log-probabilities-before-underflow`.
+  Start with `tests/published_models.rs` literals, not forward/inverse round trips;
+  cover the x=1.5 branch, subnormals, and natural-log targets below exp underflow.
+  Reproduce the fixed reference set with the self-contained stdlib helper
+  [`scripts/gaussian_references.py`](scripts/gaussian_references.py): from the
+  checkout root, run
+  `uv run --offline --no-project python .agents/skills/rf-literature-review/scripts/gaussian_references.py`.
+  It asserts identical rounded binary64 results at 1,200 and 1,600 Decimal
+  digits, prints references, and performs no network access or file writes.
+  Its finite supported set is documented in the production-models guide; it is
+  not an arbitrary-tail precision guarantee. On convergence or stability failure,
+  investigate precision and bracketing rather than copying crate output.
+  Platform erfc can itself underflow early; do not resolve a
+  disagreement by copying production output or relaxing the acceptance gate.
+  Preserve legacy constellation behavior separately from checked domains. If
+  a threshold changes, rerun the actual Monte Carlo CLI and independent verifier
+  before refreshing its observations. No new dependency installation, compiler
+  minimum claim without evidence, or FEC-accuracy claim follows from tail accuracy.
 - If access or extraction fails, narrow the evidence claim or find a legitimate
   alternate source. Do not bypass access controls, invent citations, or copy
   downloadable reference code without a license review.

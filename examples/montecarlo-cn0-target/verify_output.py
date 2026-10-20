@@ -56,7 +56,7 @@ def main() -> None:
             lo = mid
         else:
             hi = mid
-    assert abs(float(report["required_eb_no_db"]) - (lo + hi) / 2) < 0.001
+    assert abs(float(report["required_eb_no_db"]) - (lo + hi) / 2) < 1e-10
     assert int(report["seed"]) == 99
     assert float(report["information_rate_bps"]) == 10e6
     assert float(report["target_ber"]) == 1e-6

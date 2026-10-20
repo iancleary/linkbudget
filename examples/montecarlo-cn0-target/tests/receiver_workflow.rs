@@ -6,7 +6,7 @@ fn fixed_receiver_margin_against_independent_thermal_noise_control() {
     // C/(k*Tsys) gives 83.28437800279511 dB-Hz, independent of Bn.
     // Independent erfc inversion gives QPSK BER=1e-6 at 10.529831699571446 dB.
     let required = ber::required_eb_no_db(1e-6, &Modulation::Qpsk).unwrap();
-    assert!((required - 10.529831699571446).abs() < 0.001);
+    assert!((required - 10.529831699571446).abs() < 1e-10);
     for noise_bandwidth_hz in [5e6, 10e6, 25e6] {
         let receiver = Receiver {
             gain: 42.0,
@@ -20,7 +20,7 @@ fn fixed_receiver_margin_against_independent_thermal_noise_control() {
         assert!((c_no - 83.28437800279511).abs() < 1e-10);
         let eb_no = energy::c_over_no_to_eb_over_no(c_no, 10e6);
         assert!((eb_no - 13.284378002795108).abs() < 1e-10);
-        assert!((eb_no - required - 2.7545463032236626).abs() < 0.001);
+        assert!((eb_no - required - 2.7545463032236626).abs() < 1e-10);
         let doubled_rate_eb_no = energy::c_over_no_to_eb_over_no(c_no, 20e6);
         assert!((doubled_rate_eb_no - 10.274078046155296).abs() < 1e-10);
     }

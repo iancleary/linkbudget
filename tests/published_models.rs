@@ -3,7 +3,234 @@
 use linkbudget::atmosphere::sky_noise_temperature_k;
 use linkbudget::dvbs2::{self, Mode};
 use linkbudget::rain::{specific_attenuation_db_per_km, RainPath};
+use linkbudget::{ber, Modulation};
 use linkbudget::{LinkBudget, ModelError, PathLoss, Receiver, ReceiverNoise, Transmitter};
+
+#[test]
+fn gaussian_tails_match_independent_high_precision_references() {
+    // 1200-digit stdlib Decimal erf Taylor series, with Machin pi. This is
+    // independent of the gamma continued fraction used for positive tails.
+    for (x, expected) in [
+        (0.0, 1.0),
+        (0.125, 0.859_683_795_198_666_2),
+        (0.5, 0.479_500_122_186_953_5),
+        (1.0, 0.157_299_207_050_285_13),
+        (1.499_999_999_999, 0.033_894_853_524_808_21),
+        (1.5, 0.033_894_853_524_689_274),
+        (1.500_000_000_001, 0.033_894_853_524_570_334),
+        (2.0, 0.004_677_734_981_047_266),
+        (4.0, 1.541_725_790_028_002e-8),
+        (8.0, 1.122_429_717_298_292_6e-29),
+        (10.0, 2.088_487_583_762_545e-45),
+        (20.0, 5.395_865_611_607_901e-176),
+        (26.0, 5.663_192_408_856_143e-296),
+    ] {
+        let actual = ber::erfc(x);
+        assert!(
+            (actual / expected - 1.0).abs() < 1e-12,
+            "erfc({x})={actual}"
+        );
+        assert!((ber::erfc(-x) - (2.0 - expected)).abs() < 2e-15);
+    }
+    assert_eq!(ber::erfc(27.0), 5.237_05e-319);
+    assert_eq!(ber::erfc(27.2), f64::from_bits(2));
+    assert_eq!(ber::erfc(27.25), 0.0);
+    assert_eq!(ber::erfc(f64::INFINITY), 0.0);
+    assert_eq!(ber::erfc(f64::NEG_INFINITY), 2.0);
+    assert!(ber::erfc(f64::NAN).is_nan());
+    assert_eq!(ber::q_function(f64::INFINITY), 0.0);
+    assert_eq!(ber::q_function(f64::NEG_INFINITY), 1.0);
+    assert!(ber::q_function(f64::NAN).is_nan());
+    assert_eq!(ber::q_function(0.0), 0.5);
+    assert_eq!(ber::erfc(-0.0), 1.0);
+    assert_eq!(ber::erfc(f64::from_bits(1)), 1.0);
+}
+
+#[test]
+fn uncoded_ber_and_log_threshold_workflows_match_independent_references() {
+    for (db, modulation, expected, log_expected) in [
+        (
+            0.0,
+            Modulation::Bpsk,
+            0.078_649_603_525_142_57,
+            -2.542_752_690_493_193_4,
+        ),
+        (
+            10.0,
+            Modulation::Qpsk,
+            3.872_108_215_522_042e-6,
+            -12.461_711_440_716_82,
+        ),
+        (
+            20.0,
+            Modulation::Msk,
+            1.044_243_791_881_272_4e-45,
+            -103.573_036_205_404_83,
+        ),
+        (
+            10.0,
+            Modulation::Mpsk(8),
+            0.001_011_395_320_712_890_7,
+            -6.896_424_395_873_596,
+        ),
+        (
+            15.0,
+            Modulation::Mqam(16),
+            1.841_855_511_094_483_2e-7,
+            -15.507_322_157_518_67,
+        ),
+        (
+            20.0,
+            Modulation::Mqam(64),
+            2.633_892_531_773_040_7e-8,
+            -17.452_217_941_853_52,
+        ),
+    ] {
+        assert!((ber::ber_from_db(db, &modulation) / expected - 1.0).abs() < 1e-12);
+        assert!((ber::log_ber_from_db(db, &modulation).unwrap() - log_expected).abs() < 1e-12);
+        // Invert independent literal probabilities, not crate-generated BER.
+        assert!((ber::required_eb_no_db(expected, &modulation).unwrap() - db).abs() < 1e-11);
+        assert!(
+            (ber::required_eb_no_from_log_ber(log_expected, &modulation).unwrap() - db).abs()
+                < 1e-11
+        );
+    }
+    for modulation in [
+        Modulation::Bpsk,
+        Modulation::Qpsk,
+        Modulation::Mpsk(2),
+        Modulation::Mpsk(4),
+        Modulation::Mqam(4),
+        Modulation::Msk,
+    ] {
+        for (target, required) in [
+            (1e-6, 10.529_831_699_571_448),
+            (1e-100, 23.546_460_034_850_334),
+            (1e-300, 28.364_783_528_218_62),
+        ] {
+            let result = ber::required_eb_no_db(target, &modulation).unwrap();
+            assert!((result - required).abs() < 1e-11);
+            assert!(
+                (ber::required_eb_no_from_log_ber(target.ln(), &modulation).unwrap() - required)
+                    .abs()
+                    < 1e-11
+            );
+        }
+    }
+    let modulation = Modulation::Qpsk;
+    assert_eq!(ber::ber_from_db(30.0, &modulation), 0.0);
+    assert!(
+        (ber::log_ber_from_db(30.0, &modulation).unwrap() + 1_004.719_889_139_511_9).abs() < 2e-12
+    );
+    let threshold = ber::required_eb_no_from_log_ber(-1000.0, &modulation).unwrap();
+    assert!((threshold - 29.979_463_561_086_86).abs() < 1e-11);
+    assert!(
+        (ber::link_margin_db(12.0, 1e-6, &modulation).unwrap() - 1.470_168_300_428_552).abs()
+            < 1e-11
+    );
+    // Compatibility is intentional: the legacy heuristic 32-APSK/QAM preset
+    // still works, while checked APIs refuse its unsupported square geometry.
+    assert!(linkbudget::coding::dvbs2_32apsk_r56()
+        .required_eb_no_db(1e-6)
+        .is_some());
+    for invalid in [
+        Modulation::Mqam(0),
+        Modulation::Mqam(2),
+        Modulation::Mqam(32),
+        Modulation::Mpsk(1),
+        Modulation::Mpsk(3),
+    ] {
+        assert!(matches!(
+            ber::log_ber_from_db(10.0, &invalid),
+            Err(ModelError::UnsupportedRegime(_))
+        ));
+        assert!(matches!(
+            ber::required_eb_no_from_log_ber(-10.0, &invalid),
+            Err(ModelError::UnsupportedRegime(_))
+        ));
+    }
+    for invalid in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        assert!(matches!(
+            ber::log_ber_from_db(invalid, &modulation),
+            Err(ModelError::InvalidInput(_))
+        ));
+    }
+    assert!(matches!(
+        ber::log_ber_from_db(f64::MAX, &modulation),
+        Err(ModelError::NumericalFailure(_))
+    ));
+    assert_eq!(
+        ber::log_ber_from_db(-f64::MAX, &modulation).unwrap(),
+        -std::f64::consts::LN_2
+    );
+    for invalid in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, 0.0, 1.0] {
+        assert!(matches!(
+            ber::required_eb_no_from_log_ber(invalid, &modulation),
+            Err(ModelError::InvalidInput(_))
+        ));
+    }
+    for outside in [-0.1, -1e6] {
+        assert!(matches!(
+            ber::required_eb_no_from_log_ber(outside, &modulation),
+            Err(ModelError::UnsupportedRegime(_))
+        ));
+    }
+    for db in [-5.0, 50.0] {
+        let log_target = ber::log_ber_from_db(db, &modulation).unwrap();
+        assert_eq!(
+            ber::required_eb_no_from_log_ber(log_target, &modulation),
+            Ok(db)
+        );
+    }
+    let endpoint = ber::ber_from_db(-5.0, &modulation);
+    assert_eq!(ber::required_eb_no_db(endpoint, &modulation), Some(-5.0));
+    assert_eq!(ber::required_eb_no_db(0.5, &modulation), None);
+    assert!(ber::required_eb_no_db(f64::from_bits(1), &modulation)
+        .unwrap()
+        .is_finite());
+}
+
+#[test]
+fn inverse_gaussian_tail_supports_full_probability_domain() {
+    for (probability, expected) in [
+        (0.1, 1.281_551_565_544_600_4),
+        (1e-100, 21.273_453_560_965_326),
+        (1e-300, 37.047_096_299_361_2),
+        (f64::from_bits(1), 38.467_405_617_144_344),
+    ] {
+        let actual = ber::inverse_q_function(probability).unwrap();
+        assert!((actual - expected).abs() < 3e-14, "{probability}: {actual}");
+    }
+    assert_eq!(ber::inverse_q_function(0.5), Ok(0.0));
+    for probability in [
+        0.125,
+        0.25,
+        0.499_999_999_999_999_94,
+        f64::from_bits(0x3fef_ffff_ffff_ffff),
+    ] {
+        let actual = ber::inverse_q_function(probability).unwrap();
+        assert!((ber::q_function(actual) - probability).abs() < 3e-16);
+        let complement = 1.0 - probability;
+        // Only exact representable complements promise exact sign symmetry.
+        if 1.0 - complement == probability {
+            assert_eq!(ber::inverse_q_function(complement).unwrap(), -actual);
+        }
+    }
+    for invalid in [
+        0.0,
+        1.0,
+        -0.1,
+        1.1,
+        f64::NAN,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+    ] {
+        assert_eq!(
+            ber::inverse_q_function(invalid),
+            Err(ModelError::InvalidInput("probability"))
+        );
+    }
+}
 
 #[test]
 fn rain_specific_attenuation_matches_published_and_independent_values() {
