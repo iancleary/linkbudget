@@ -2,7 +2,478 @@
 
 use linkbudget::atmosphere::sky_noise_temperature_k;
 use linkbudget::dvbs2::{self, Mode};
+use linkbudget::rain::{specific_attenuation_db_per_km, RainPath};
 use linkbudget::{LinkBudget, ModelError, PathLoss, Receiver, ReceiverNoise, Transmitter};
+
+#[test]
+fn rain_specific_attenuation_matches_published_and_independent_values() {
+    // ITU-Rpy pinned CSVs and offline numerical evaluation; provenance and
+    // precision distinctions are recorded in docs/production-models.md.
+    for (frequency_ghz, rain_rate, elevation, tilt, expected) in [
+        (14.25, 26.48052, 31.07699124, 0.0, 1.58130839),
+        (29.0, 26.48052, 31.07699124, 0.0, 5.02180189),
+        (14.25, 63.62668149, 48.24117054, 90.0, 3.72901264),
+        (29.0, 42.91007183, 20.14335809, 90.0, 6.83364556),
+    ] {
+        let actual =
+            specific_attenuation_db_per_km(frequency_ghz * 1e9, rain_rate, elevation, tilt)
+                .unwrap();
+        assert!((actual - expected).abs() < 1e-8, "{actual} != {expected}");
+    }
+    for (frequency_ghz, rain_rate, elevation, tilt, expected) in [
+        (1.0, 25.0, 0.0, 0.0, 0.000_585_983_457_747_974_3),
+        (10.0, 25.0, 0.0, 0.0, 0.695_871_528_099_342),
+        (10.0, 25.0, 0.0, 90.0, 0.565_151_233_006_795_8),
+        (20.0, 50.0, 30.0, 45.0, 5.073_415_344_222_843),
+        (55.0, 100.0, 5.0, 90.0, 25.643_906_239_423_803),
+        (100.0, 25.0, 60.0, 0.0, 12.188_947_321_409_204),
+        (1000.0, 25.0, 90.0, 45.0, 10.767_074_998_092_73),
+    ] {
+        let actual =
+            specific_attenuation_db_per_km(frequency_ghz * 1e9, rain_rate, elevation, tilt)
+                .unwrap();
+        assert!((actual - expected).abs() < 1e-11, "{actual} != {expected}");
+    }
+}
+
+#[test]
+fn annual_rain_quantiles_match_validation_examples_with_explicit_climate_inputs() {
+    // P.618-14 A_rain CSV values, with rain heights from the P.839-4 CSV.
+    // Each row carries all RainPath inputs; percentages are .001, .01, .1, 1.
+    let cases = [
+        (
+            14.25e9,
+            31.07699124,
+            51.5,
+            31.382984,
+            2452.73333,
+            26.48052,
+            0.0,
+            [14.89982248, 6.798072267, 2.185847422, 0.495317069],
+        ),
+        (
+            29e9,
+            40.232036,
+            41.9,
+            46.122988,
+            3047.49333,
+            33.936232,
+            0.0,
+            [54.25561152, 28.74272193, 10.73100773, 2.823465634],
+        ),
+        (
+            14.25e9,
+            22.27833468,
+            22.9,
+            0.0,
+            4158.77867,
+            50.639304,
+            0.0,
+            [29.91171296, 18.94410356, 8.271647438, 1.706901281],
+        ),
+        (
+            29e9,
+            52.67898486,
+            25.78,
+            8.61728,
+            4569.46133,
+            78.2994993,
+            0.0,
+            [93.39562548, 58.47438336, 25.56295492, 6.654855651],
+        ),
+    ];
+    for (
+        frequency_hz,
+        elevation_deg,
+        latitude_deg,
+        station_height_m,
+        rain_height_m,
+        rain_rate_001_mm_h,
+        polarization_tilt_deg,
+        expected,
+    ) in cases
+    {
+        let path = RainPath {
+            frequency_hz,
+            elevation_deg,
+            latitude_deg,
+            station_height_m,
+            rain_height_m,
+            rain_rate_001_mm_h,
+            polarization_tilt_deg,
+        };
+        for (percent, expected_db) in [0.001, 0.01, 0.1, 1.0].into_iter().zip(expected) {
+            let actual = path.attenuation_exceeded_db(percent).unwrap();
+            assert!(
+                (actual - expected_db).abs() < 1e-6,
+                "{path:?}, p={percent}: {actual} != {expected_db}"
+            );
+        }
+    }
+}
+
+#[test]
+fn rain_low_elevation_tropical_and_zenith_paths_match_independent_numerics() {
+    // Additional ITU-Rpy numeric-routine cases, not official validation rows.
+    let cases = [
+        (
+            20e9,
+            2.0,
+            10.0,
+            100.0,
+            5000.0,
+            80.0,
+            45.0,
+            [
+                233.35950039772555,
+                171.65028526647654,
+                87.72778671197015,
+                24.419448751180017,
+                8.879893615682954,
+            ],
+        ),
+        (
+            20e9,
+            5.0,
+            10.0,
+            100.0,
+            5000.0,
+            80.0,
+            45.0,
+            [
+                139.25163215841013,
+                116.59775871644676,
+                66.70412867060108,
+                15.31002525141487,
+                5.413570179020045,
+            ],
+        ),
+        (
+            20e9,
+            30.0,
+            -10.0,
+            100.0,
+            5000.0,
+            80.0,
+            90.0,
+            [
+                63.089342779084845,
+                40.183985868474714,
+                17.772331503917453,
+                4.231215864473713,
+                1.385053930335913,
+            ],
+        ),
+        (
+            55e9,
+            90.0,
+            36.0,
+            0.0,
+            4000.0,
+            30.0,
+            0.0,
+            [
+                118.63478933301931,
+                68.79712252303197,
+                28.11628057257508,
+                8.097945448564392,
+                2.7560606314539116,
+            ],
+        ),
+        (
+            1e9,
+            10.0,
+            45.0,
+            -400.0,
+            2500.0,
+            10.0,
+            0.0,
+            [
+                0.012273613634145288,
+                0.0024641205973225722,
+                0.0003486429229419937,
+                0.00003476395129432661,
+                0.0000056370183762336745,
+            ],
+        ),
+    ];
+    for (
+        frequency_hz,
+        elevation_deg,
+        latitude_deg,
+        station_height_m,
+        rain_height_m,
+        rain_rate_001_mm_h,
+        polarization_tilt_deg,
+        expected,
+    ) in cases
+    {
+        let path = RainPath {
+            frequency_hz,
+            elevation_deg,
+            latitude_deg,
+            station_height_m,
+            rain_height_m,
+            rain_rate_001_mm_h,
+            polarization_tilt_deg,
+        };
+        for (percent, expected_db) in [0.001, 0.01, 0.1, 1.0, 5.0].into_iter().zip(expected) {
+            let actual = path.attenuation_exceeded_db(percent).unwrap();
+            assert!(
+                (actual - expected_db).abs() < 1e-10,
+                "{path:?}, p={percent}: {actual} != {expected_db}"
+            );
+            let mirrored = RainPath {
+                latitude_deg: -latitude_deg,
+                ..path
+            };
+            assert_eq!(mirrored.attenuation_exceeded_db(percent).unwrap(), actual);
+        }
+    }
+}
+
+fn tropical_rain_path() -> RainPath {
+    RainPath {
+        frequency_hz: 20e9,
+        elevation_deg: 30.0,
+        latitude_deg: -10.0,
+        station_height_m: 100.0,
+        rain_height_m: 5000.0,
+        rain_rate_001_mm_h: 80.0,
+        polarization_tilt_deg: 90.0,
+    }
+}
+
+#[test]
+fn rain_boundary_regimes_and_invalid_inputs_are_explicit() {
+    let base = tropical_rain_path();
+    for percent in [0.001, 0.01, 0.1, 1.0, 5.0] {
+        for path in [
+            RainPath {
+                rain_rate_001_mm_h: 0.0,
+                ..base
+            },
+            RainPath {
+                station_height_m: 5000.0,
+                ..base
+            },
+            RainPath {
+                station_height_m: 6000.0,
+                ..base
+            },
+        ] {
+            assert_eq!(path.attenuation_exceeded_db(percent), Ok(0.0));
+        }
+    }
+    assert_eq!(specific_attenuation_db_per_km(1e9, 0.0, 0.0, 0.0), Ok(0.0));
+    let circular = specific_attenuation_db_per_km(20e9, 50.0, 30.0, 45.0).unwrap();
+    assert_eq!(
+        specific_attenuation_db_per_km(20e9, 50.0, 30.0, -135.0).unwrap(),
+        circular
+    );
+    assert!(specific_attenuation_db_per_km(20e9, 50.0, 30.0, f64::MAX)
+        .unwrap()
+        .is_finite());
+
+    // P.618-14 step 10 specifies theta >= 25 (the pinned reference uses >).
+    // A.001 from the reference routine; eq. 8 evaluated separately with beta=.13.
+    let at_25 = RainPath {
+        elevation_deg: 25.0,
+        latitude_deg: 10.0,
+        polarization_tilt_deg: 45.0,
+        ..base
+    };
+    assert!((at_25.attenuation_exceeded_db(0.01).unwrap() - 46.863_003_643_322_216).abs() < 1e-10);
+    assert!((at_25.attenuation_exceeded_db(0.1).unwrap() - 20.624_671_943_929_91).abs() < 1e-10);
+
+    for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        for field in [
+            "frequency_hz",
+            "elevation_deg",
+            "latitude_deg",
+            "station_height_m",
+            "rain_height_m",
+            "rain_rate_001_mm_h",
+            "polarization_tilt_deg",
+        ] {
+            let mut path = base;
+            match field {
+                "frequency_hz" => path.frequency_hz = value,
+                "elevation_deg" => path.elevation_deg = value,
+                "latitude_deg" => path.latitude_deg = value,
+                "station_height_m" => path.station_height_m = value,
+                "rain_height_m" => path.rain_height_m = value,
+                "rain_rate_001_mm_h" => path.rain_rate_001_mm_h = value,
+                "polarization_tilt_deg" => path.polarization_tilt_deg = value,
+                _ => unreachable!(),
+            }
+            assert_eq!(
+                path.attenuation_exceeded_db(0.1),
+                Err(ModelError::InvalidInput(field))
+            );
+        }
+        assert_eq!(
+            base.attenuation_exceeded_db(value),
+            Err(ModelError::InvalidInput("exceedance_percent"))
+        );
+        for result in [
+            specific_attenuation_db_per_km(value, 25.0, 30.0, 0.0),
+            specific_attenuation_db_per_km(20e9, value, 30.0, 0.0),
+            specific_attenuation_db_per_km(20e9, 25.0, value, 0.0),
+            specific_attenuation_db_per_km(20e9, 25.0, 30.0, value),
+        ] {
+            assert!(matches!(result, Err(ModelError::InvalidInput(_))));
+        }
+    }
+    for path in [
+        RainPath {
+            frequency_hz: 0.0,
+            ..base
+        },
+        RainPath {
+            frequency_hz: -1.0,
+            ..base
+        },
+        RainPath {
+            elevation_deg: 0.0,
+            ..base
+        },
+        RainPath {
+            elevation_deg: -1.0,
+            ..base
+        },
+        RainPath {
+            elevation_deg: 90.1,
+            ..base
+        },
+        RainPath {
+            latitude_deg: -90.1,
+            ..base
+        },
+        RainPath {
+            latitude_deg: 90.1,
+            ..base
+        },
+        RainPath {
+            rain_height_m: -1.0,
+            ..base
+        },
+        RainPath {
+            rain_rate_001_mm_h: -1.0,
+            ..base
+        },
+    ] {
+        assert!(matches!(
+            path.attenuation_exceeded_db(0.1),
+            Err(ModelError::InvalidInput(_))
+        ));
+    }
+    for frequency_hz in [0.999e9, 55.001e9] {
+        assert!(matches!(
+            RainPath {
+                frequency_hz,
+                ..base
+            }
+            .attenuation_exceeded_db(0.1),
+            Err(ModelError::UnsupportedRegime(_))
+        ));
+    }
+    for percent in [0.0, -0.1] {
+        assert_eq!(
+            base.attenuation_exceeded_db(percent),
+            Err(ModelError::InvalidInput("exceedance_percent"))
+        );
+    }
+    for percent in [0.000999, 5.001, 99.9] {
+        assert!(matches!(
+            base.attenuation_exceeded_db(percent),
+            Err(ModelError::UnsupportedRegime(_))
+        ));
+    }
+    // Early physical-zero cases must not hide invalid inputs.
+    assert!(RainPath {
+        rain_rate_001_mm_h: 0.0,
+        latitude_deg: 91.0,
+        ..base
+    }
+    .attenuation_exceeded_db(0.1)
+    .is_err());
+    assert!(RainPath {
+        station_height_m: 6000.0,
+        ..base
+    }
+    .attenuation_exceeded_db(99.9)
+    .is_err());
+    for result in [
+        specific_attenuation_db_per_km(0.999e9, 25.0, 30.0, 0.0),
+        specific_attenuation_db_per_km(1000.001e9, 25.0, 30.0, 0.0),
+    ] {
+        assert!(matches!(result, Err(ModelError::UnsupportedRegime(_))));
+    }
+    for result in [
+        specific_attenuation_db_per_km(0.0, 25.0, 30.0, 0.0),
+        specific_attenuation_db_per_km(20e9, -1.0, 30.0, 0.0),
+        specific_attenuation_db_per_km(20e9, 25.0, -0.1, 0.0),
+        specific_attenuation_db_per_km(20e9, 25.0, 90.1, 0.0),
+    ] {
+        assert!(matches!(result, Err(ModelError::InvalidInput(_))));
+    }
+    for result in [
+        specific_attenuation_db_per_km(10e9, f64::MAX, 0.0, 0.0),
+        RainPath {
+            frequency_hz: 10e9,
+            rain_rate_001_mm_h: f64::MAX,
+            ..base
+        }
+        .attenuation_exceeded_db(0.1),
+        RainPath {
+            rain_height_m: f64::MAX,
+            rain_rate_001_mm_h: 1e100,
+            ..base
+        }
+        .attenuation_exceeded_db(0.1),
+    ] {
+        assert!(matches!(result, Err(ModelError::NumericalFailure(_))));
+    }
+}
+
+#[test]
+fn rain_quantile_is_explicit_additional_link_loss_not_automatic_noise() {
+    let loss_db = tropical_rain_path().attenuation_exceeded_db(0.1).unwrap();
+    let downlink = |loss| LinkBudget {
+        name: "Rain-only 99.9% annual quantile, externally supplied system noise",
+        bandwidth: 20e6,
+        transmitter: Transmitter {
+            output_power: 10.0,
+            gain: 35.0,
+            bandwidth: 20e6,
+        },
+        receiver: Receiver {
+            gain: 40.0,
+            // Fixed externally characterized noise isolates the signal-loss
+            // contribution; this is not a prediction of wet-sky emission.
+            noise: ReceiverNoise::SystemTemperature {
+                temperature_k: 200.0,
+            },
+            bandwidth: 20e6,
+        },
+        path_loss: PathLoss {
+            frequency: 20e9,
+            distance: 550e3,
+        },
+        frequency_dependent_loss: loss,
+    };
+    let clear = downlink(None);
+    let rainy = downlink(Some(loss_db));
+    assert!((loss_db - 17.772_331_503_917_453).abs() < 1e-10);
+    assert!((clear.pin_at_receiver() - rainy.pin_at_receiver() - loss_db).abs() < 1e-12);
+    assert!((clear.c_over_no() - rainy.c_over_no() - loss_db).abs() < 1e-12);
+    assert!((clear.snr() - rainy.snr() - loss_db).abs() < 1e-12);
+    assert_eq!(
+        clear.receiver.calculate_noise_power(),
+        rainy.receiver.calculate_noise_power()
+    );
+}
 
 #[test]
 fn atmospheric_emission_and_attenuation_reduce_downlink_snr_together() {

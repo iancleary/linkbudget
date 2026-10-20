@@ -43,6 +43,7 @@ pub mod phy;
 #[allow(missing_docs, dead_code)]
 pub(crate) mod plot;
 pub mod quantization;
+pub mod rain;
 pub mod receiver;
 pub mod sensitivity;
 pub mod transmitter;

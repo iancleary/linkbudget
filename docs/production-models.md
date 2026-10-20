@@ -16,7 +16,7 @@ values rather than proving only that a forward/inverse pair agrees.
 | --- | --- | --- |
 | 1 | DVB-S2 reference profiles | Table 13 rows, allocation → selection → rate; baseline API retained |
 | 2 | Atmospheric sky noise | P.618-14 eq. 69 → receiver source noise + path attenuation → full-link SNR |
-| 3 | Rain attenuation/exceedance | Planned |
+| 3 | Rain attenuation/exceedance | P.838-3 + P.618-14 annual rain quantiles → explicit full-link loss; pinned validation CSV and independent numeric cases |
 | 4 | Monte Carlo uncertainty | Planned |
 | 5 | Gaussian-tail numerics | Planned |
 | 6 | Finite-blocklength estimates | Planned |
@@ -24,6 +24,138 @@ values rather than proving only that a forward/inverse pair agrees.
 The stack uses no automatic climate-data downloads, production writes, modem
 simulations, or new runtime dependencies. Validation of formulas is not field
 validation of their inputs or performance guarantees for a particular decoder.
+
+## Rain: annual exceedance is not pass availability
+
+[`rain`](../src/rain.rs) implements two pure offline models:
+
+- `specific_attenuation_db_per_km`: [ITU-R P.838-3 (03/2005)](https://www.itu.int/rec/R-REC-P.838-3-200503-I/en),
+  equations 1–5 and Tables 1–4, over 1–1000 GHz. It evaluates `gamma = k R^alpha`
+  using frequency-dependent H/V coefficients and elevation/polarization geometry.
+- `RainPath::attenuation_exceeded_db`: [ITU-R P.618-14 (08/2023)](https://www.itu.int/rec/R-REC-P.618-14-202308-I/en),
+  section 2.2.1.1 steps 1–10, over 1–55 GHz and 0.001–5 percent annual exceedance.
+  It computes the rain-layer slant path (including effective Earth curvature below
+  5°), horizontal reduction, latitude-dependent vertical adjustment, A0.01, then
+  the percentage scaling with the tropical/elevation branches of step 10.
+
+The caller supplies rain height (for example from P.839) and **one-minute point
+rain rate exceeded for 0.01% of an average year** (R0.01, for example from P.837).
+An instantaneous rain gauge reading is not a replacement for R0.01. Heights use
+meters above a common mean-sea-level datum, not height above the antenna. There
+are no embedded maps, network lookups, dependencies, or implicit climate defaults.
+
+```rust
+use linkbudget::rain::{specific_attenuation_db_per_km, RainPath};
+
+let gamma = specific_attenuation_db_per_km(20e9, 50.0, 30.0, 45.0)?;
+assert!((gamma - 5.073415344222843).abs() < 1e-10); // dB/km
+let rain = RainPath {
+    frequency_hz: 20e9,
+    elevation_deg: 30.0,
+    latitude_deg: -10.0,
+    station_height_m: 100.0,
+    rain_height_m: 5000.0,
+    rain_rate_001_mm_h: 80.0,
+    polarization_tilt_deg: 90.0, // H=0°, V=90°, circular=45°
+};
+// 99.9% annual rain-only availability -> 0.1 percent exceedance, NOT 99.9.
+let attenuation_db = rain.attenuation_exceeded_db(0.1)?;
+assert!((attenuation_db - 17.772331503917453).abs() < 1e-10);
+# Ok::<(), linkbudget::ModelError>(())
+```
+
+For a `LinkBudget`, put the returned attenuation in `frequency_dependent_loss`,
+adding other justified **signal** losses once rather than replacing or duplicating
+FSPL. The integration workflow in [`tests/published_models.rs`](../tests/published_models.rs)
+uses this example with 10 dBm TX power, 35/40 dBi TX/RX gains, 550 km range,
+20 MHz channel/noise bandwidths, and an explicitly supplied 200 K system noise
+temperature. Received power, C/N0, and SNR all fall by 17.772332 dB with that
+fixed noise. This deliberately isolates the signal-loss term; a real wet-sky
+receiver also needs a justified emission/antenna-noise model. A rain quantile
+alone does not specify the absorbing component, radiating temperature, or joint
+weather statistics. **Never feed scintillation or other nonabsorptive losses into
+`atmosphere::sky_noise_temperature_k`.** Do not silently treat a rain-only result
+as total atmospheric attenuation for a noise calculation.
+
+### Reference provenance and numerical evidence
+
+The standards' factual coefficients and equations were transcribed and checked
+against the source PDFs (including visual checks of the equations and coefficient
+tables); no standard text, PDF, diagrams, or third-party implementation code is
+redistributed here. ITU retains rights in its publications. The implementation
+is written for this crate; the references below supply interoperability data,
+not a license to redistribute their software or documents.
+
+Reference revision: [ITU-Rpy `f739993c4b6d34076de22249ef53d03fa5a53d73`](https://github.com/inigodelportillo/ITU-Rpy/tree/f739993c4b6d34076de22249ef53d03fa5a53d73).
+The linked repository's [validation description](https://github.com/inigodelportillo/ITU-Rpy/blob/f739993c4b6d34076de22249ef53d03fa5a53d73/docs/validation.rst)
+attributes its examples to ITU validation workbook revision 5.1. That historical
+workbook URL returned HTTP 404 during this implementation; these are therefore
+**repository-hosted validation examples**, not a newly authenticated workbook.
+Pinned data used:
+
+- [P.838-3 specific-attenuation CSV](https://github.com/inigodelportillo/ITU-Rpy/blob/f739993c4b6d34076de22249ef53d03fa5a53d73/test/test_data/838/ITURP838-3_rain_specific_attenuation.csv):
+  four literal H/V examples at 14.25 and 29 GHz, tolerance `1e-8 dB/km`.
+- [P.618-14 rain CSV](https://github.com/inigodelportillo/ITU-Rpy/blob/f739993c4b6d34076de22249ef53d03fa5a53d73/test/test_data/618/ITURP618-14_A_rain.csv)
+  plus [P.839-4 rain-height CSV](https://github.com/inigodelportillo/ITU-Rpy/blob/f739993c4b6d34076de22249ef53d03fa5a53d73/test/test_data/839/ITURP839-4_rain_height.csv):
+  16 literal quantiles for four paths, including tropical elevations below/above
+  25°, at 0.001, 0.01, 0.1, and 1 percent. All inputs are explicit in the test;
+  `1e-6 dB` tolerance accommodates rounded climate inputs and expected results.
+
+Additional reference outputs were obtained by executing only the pinned
+[`itu838.py`](https://github.com/inigodelportillo/ITU-Rpy/blob/f739993c4b6d34076de22249ef53d03fa5a53d73/itur/models/itu838.py)
+and [`itu618.py`](https://github.com/inigodelportillo/ITU-Rpy/blob/f739993c4b6d34076de22249ef53d03fa5a53d73/itur/models/itu618.py)
+numerical routines offline with NumPy 2.4.2. Unit wrappers were removed and the
+rain-height lookup replaced with explicit scalar inputs; numeric equations were
+unchanged. This checks an independent implementation of the equations, **not**
+the complete ITU-Rpy package, Astropy integration, or geographic interpolation.
+Those routines agreed with 56 of the repository's rain CSV rows having matching
+rain-height CSV inputs to within `4.5e-8 dB`. The added literal cases cover H/V/
+circular polarization from 1 to 1000 GHz and five complete rain paths, each at
+0.001, 0.01, 0.1, 1, and 5 percent (`1e-10 dB` tolerance):
+
+| Frequency GHz | Elevation ° | Latitude ° | Station/rain height m | R0.01 mm/h | Tilt ° | A0.01 dB | A0.1 dB |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 20 | 2 | 10 | 100 / 5000 | 80 | 45 | 171.650285 | 87.727787 |
+| 20 | 5 | 10 | 100 / 5000 | 80 | 45 | 116.597759 | 66.704129 |
+| 20 | 30 | -10 | 100 / 5000 | 80 | 90 | 40.183986 | 17.772332 |
+| 55 | 90 | 36 | 0 / 4000 | 30 | 0 | 68.797123 | 28.116281 |
+| 1 | 10 | 45 | -400 / 2500 | 10 | 0 | 0.002464 | 0.000349 |
+
+One reference discrepancy is intentional: the pinned ITU-Rpy step-10 code uses
+`elevation > 25°`; P.618-14 specifies `>= 25°`. This crate follows P.618-14.
+A separate formula check at exactly 25° uses the reference A0.01 = 46.863003643322216
+and directly evaluates equation 8 with beta = 0.13, giving A0.1 =
+20.62467194392991 dB (20 GHz, latitude 10°, 100/5000 m, R0.01=80, circular).
+Zero rain and station at/above rain height are analytic zero cases. No field
+validation or independent low-elevation measurement data is claimed.
+
+### Domains, troubleshooting, and repeatable verification
+
+All public inputs must be finite. The scalar P.838 helper accepts elevations
+0–90°; `RainPath` requires 0 < elevation <= 90° and latitude -90–90°. Rain height
+and rate must be nonnegative; station height may be below sea level. Tilt is
+reduced modulo 180° before trigonometry, so large finite angles cannot overflow
+angle conversion. Positive frequencies outside the implemented band and positive
+percentages outside 0.001–5 return `UnsupportedRegime`; malformed physical values
+return `InvalidInput`. Validation runs even for physical-zero cases. Nonfinite
+calculations and unusable positive intermediates return `NumericalFailure`, never
+a NaN/infinite attenuation. Extreme inputs are not silently clamped into a forecast.
+
+For future edits, first re-check the specific recommendation revision and the
+unit/degree conventions, then compare literal public outputs against the pinned
+CSVs and numerical routines above. Preserve their distinction from field data.
+Run `CARGO_NET_OFFLINE=true just fmt-check lint test doc-check` and
+`git diff --check`. Do not refresh expected values from this crate's own output.
+If an independent source disagrees, resolve the equation/branch and record the
+reason rather than relaxing tolerances. No new tool installation or automatic
+map download is part of this procedure.
+
+Annual quantiles are not stochastic time series, fade durations, worst-month
+statistics, or availability during moving-satellite passes. Do not multiply
+this quantile by a path length or sum separately exceeded weather quantiles as
+if they were simultaneous observations. Climate uncertainty and year-to-year
+variation remain; site measurements and operational requirements must justify
+using this planning model, especially near the horizon.
 
 ## Atmospheric attenuation: update signal and noise together
 
