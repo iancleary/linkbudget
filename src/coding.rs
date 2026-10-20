@@ -14,6 +14,10 @@
 //! required_Eb/No_coded = required_Eb/No_uncoded - coding_gain
 //! ```
 //!
+//! For sourced DVB-S2 normal-frame PER thresholds (including actual APSK modes),
+//! use [`crate::dvbs2`] instead. The legacy constructors here retain their
+//! heuristic behavior for compatibility; they are not the sourced profiles.
+//!
 //! ## Assumed Coding Gains (nominally at BER = 1e-5)
 //!
 //! These are heuristic planning constants, not results from an implemented
@@ -334,6 +338,7 @@ pub fn dvbs2_8psk_r23() -> CodedModulation {
 
 /// DVB-S2 16-APSK rate 3/4 (LDPC) — modeled as 16-QAM for BER approximation.
 /// The QAM substitution does not describe APSK ring geometry or a DVB-S2 decoder.
+/// Prefer [`crate::dvbs2::Mode::Apsk16R34`] for a sourced PER threshold.
 #[must_use]
 pub fn dvbs2_16apsk_r34() -> CodedModulation {
     CodedModulation::new(Modulation::Mqam(16), FecCode::Ldpc { rate: 0.75 })
@@ -342,6 +347,7 @@ pub fn dvbs2_16apsk_r34() -> CodedModulation {
 /// DVB-S2 32-APSK rate 5/6 (LDPC) — modeled as 32-QAM for BER approximation.
 /// This preset also evaluates a square-QAM formula at the non-square order 32.
 /// Its BER is outside that formula's derivation, not a validated APSK prediction.
+/// Prefer [`crate::dvbs2::Mode::Apsk32R56`] for a sourced PER threshold.
 #[must_use]
 pub fn dvbs2_32apsk_r56() -> CodedModulation {
     CodedModulation::new(Modulation::Mqam(32), FecCode::Ldpc { rate: 5.0 / 6.0 })

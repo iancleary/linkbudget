@@ -59,6 +59,18 @@ Most APIs use unvalidated `f64` values. Use finite, physically meaningful
 inputs and the domains stated in each guide. Do not infer validation from a
 successful function call.
 
+## Published reference models
+
+- [Production model workflows](production-models.md): sourced profiles, explicit
+  assumptions, implementation decisions, and verification of the staged rollout.
+
+## Research and future improvements
+
+- [Literature-backed production opportunities](literature-opportunities.md):
+  ranked proposals for sourced DVB-S2 profiles, atmospheric noise and rain
+  availability, uncertainty reporting, BER numerics, and finite-blocklength
+  planning. Distinguishes verified observations from unimplemented ideas.
+
 ## Repository maintenance
 
 - [Agent operating loop](agent-operating-loop.md)

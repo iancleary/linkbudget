@@ -26,10 +26,12 @@ pub mod cli;
 pub mod coding;
 pub mod constants;
 pub mod doppler;
+pub mod dvbs2;
 pub mod energy;
 pub mod evm;
 #[allow(missing_docs, dead_code)]
 pub(crate) mod file_operations;
+pub mod model_error;
 pub mod modulation;
 #[allow(missing_docs, dead_code)]
 pub(crate) mod open;
@@ -50,6 +52,7 @@ pub use coding::{CodedModulation, FecCode};
 pub use doppler::*;
 pub use energy::*;
 pub use evm::*;
+pub use model_error::ModelError;
 pub use modulation::Modulation;
 pub use path_loss::PathLoss;
 pub use pfd::*;
