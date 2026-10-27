@@ -1,3 +1,13 @@
+<!-- rf-crates-repository-handoff -->
+> **Development and issue tracking have moved to [iancleary/rf-crates](https://github.com/iancleary/rf-crates).**
+>
+> The `linkbudget` crate retains its name, MIT license, and independent version.
+> Current source: [crates/linkbudget](https://github.com/iancleary/rf-crates/tree/main/crates/linkbudget).
+> Open work has been rehomed with source links and dependency ordering; see the
+> [handoff record](https://github.com/iancleary/rf-crates/blob/main/docs/repository-migration.md).
+> This repository preserves historical releases and review discussions. Its
+> legacy CI/publication workflow is disabled. Do not create new releases here.
+
 # linkbudget
 
 RF link budget analysis for satellite and terrestrial communication systems.
